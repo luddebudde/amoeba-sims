@@ -1,0 +1,18 @@
+.app {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+}
+
+.left {
+  min-width: 300px;
+  max-width: 20vw;
+}
+
+.right {
+    flex: 1;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  margin: 0;
+}
