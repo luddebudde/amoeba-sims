@@ -17,7 +17,6 @@ import { randomInCircle } from "./math.ts"
 export type Game = Awaited<ReturnType<typeof createGame>>
 
 type Particle = {
-  graphics: Graphics
   pos: Vec
   vel: Vec
 }
@@ -45,6 +44,59 @@ type Config = {
   mass: number
 }
 
+function calculateForce(
+  particle: Particle,
+  mapRadius: number,
+  config: Config,
+  particles: Particle[],
+) {
+  const fieldR = sub(origin, particle.pos)
+  const fieldRNorm = normalise(fieldR)
+
+  const fieldForce =
+    lengthSq(fieldR) > mapRadius ** 2
+      ? mult(fieldRNorm, (length(fieldR) - mapRadius) * 0.001)
+      : { x: 0, y: 0 }
+
+  const airResistance = mult(particle.vel, -config.airResistanceCoeff)
+
+  const otherParticleForce = particles.reduce(
+    (force, otherParticle) => {
+      if (particle === otherParticle) {
+        return force
+      }
+
+      const r = sub(particle.pos, otherParticle.pos)
+      const rLen = length(r)
+      const rNorm = div(r, rLen)
+
+      if (rLen > config.particleRadius * 2) {
+        const forceMagnitude =
+          config.charge /
+          Math.max(lengthSq(r), (config.particleRadius * 0.01) ** 2)
+
+        const deltaForce = mult(rNorm, forceMagnitude)
+        force.x += deltaForce.x
+        force.y += deltaForce.y
+      } else {
+        const relV = sub(particle.vel, otherParticle.vel)
+        const dxdt = dot(relV, rNorm)
+        const damping = mult(rNorm, -dxdt * config.springDampingCoeff)
+        const forceSpringLen =
+          (config.particleRadius * 2 - rLen) * config.springCoeff
+        const forceSpring = add(mult(rNorm, forceSpringLen), damping)
+
+        force.x += forceSpring.x
+        force.y += forceSpring.y
+      }
+      return force
+    },
+    { x: 0, y: 0 },
+  )
+  const force = sum(fieldForce, otherParticleForce, airResistance)
+  return force
+}
+
 export const createGame = async (
   root: HTMLElement,
   particleCount: number,
@@ -66,13 +118,17 @@ export const createGame = async (
 
   const mapRadius = Math.min(app.screen.width, app.screen.height) / 2
 
-  const particles: Particle[] = Array.from({ length: particleCount }).map(
+  let particlesT0: Particle[] = Array.from({ length: particleCount }).map(
     () => ({
-      graphics: createParticleGraphic(config),
       pos: randomInCircle(mapRadius),
       vel: randomInCircle(1),
       // vel: { x: 0, y: 0 },
     }),
+  )
+  let particlesT1 = structuredClone(particlesT0)
+
+  const particleGraphics: Graphics[] = particlesT0.map(() =>
+    createParticleGraphic(config),
   )
 
   const boundary = new Graphics()
@@ -81,77 +137,34 @@ export const createGame = async (
   boundary.stroke()
   world.addChild(boundary)
 
-  particles.forEach((particle) => {
-    world.addChild(particle.graphics)
+  particleGraphics.forEach((particle) => {
+    world.addChild(particle)
   })
 
   app.stage.addChild(world)
 
-  // const bunny = new Sprite(texture);
-
-  // Listen for animate update
   app.ticker.add((time) => {
     const dt = time.deltaTime
 
-    // Just for fun, let's rotate mr rabbit a little.
-    // * Delta is 1 if running at 100% performance *
-    // * Creates frame-independent transformation *
-    particles.forEach((particle) => {
-      const fieldR = sub(origin, particle.pos)
-      const fieldRNorm = normalise(fieldR)
-
-      const fieldForce =
-        lengthSq(fieldR) > mapRadius ** 2
-          ? mult(fieldRNorm, (length(fieldR) - mapRadius) * 0.001)
-          : { x: 0, y: 0 }
-
-      const airResistance = mult(particle.vel, -config.airResistanceCoeff)
-
-      const otherParticleForce = particles.reduce(
-        (force, otherParticle) => {
-          if (particle === otherParticle) {
-            return force
-          }
-
-          const r = sub(particle.pos, otherParticle.pos)
-          const rLen = length(r)
-          const rNorm = div(r, rLen)
-
-          if (rLen > config.particleRadius * 2) {
-            const forceMagnitude =
-              config.charge /
-              Math.max(lengthSq(r), (config.particleRadius * 0.01) ** 2)
-
-            const deltaForce = mult(rNorm, forceMagnitude)
-            force.x += deltaForce.x
-            force.y += deltaForce.y
-          } else {
-            const relV = sub(particle.vel, otherParticle.vel)
-            const dxdt = dot(relV, rNorm)
-            const damping = mult(rNorm, -dxdt * config.springDampingCoeff)
-            const forceSpringLen =
-              (config.particleRadius * 2 - rLen) * config.springCoeff
-            const forceSpring = add(mult(rNorm, forceSpringLen), damping)
-
-            force.x += forceSpring.x
-            force.y += forceSpring.y
-          }
-          return force
-        },
-        { x: 0, y: 0 },
-      )
-      const force = sum(fieldForce, otherParticleForce, airResistance)
+    particlesT0.forEach((particleT0, index) => {
+      const particleT1 = particlesT1[index]
+      const force = calculateForce(particleT0, mapRadius, config, particlesT0)
 
       const acc = div(force, config.mass)
+      const dVel = mult(acc, dt)
 
-      particle.vel.x += dt * acc.x
-      particle.vel.y += dt * acc.y
-
-      particle.pos.x += dt * particle.vel.x
-      particle.pos.y += dt * particle.vel.y
-
-      particle.graphics.position.copyFrom(particle.pos)
+      const v1 = sum(particleT0.vel, dVel)
+      particleT1.vel = v1
+      particleT1.pos = sum(particleT0.pos, v1)
     })
+
+    // Draw the particles
+    particlesT1.forEach((particle, index) => {
+      particleGraphics[index].position.copyFrom(particle.pos)
+    })
+    const tmp = particlesT0
+    particlesT0 = particlesT1
+    particlesT1 = tmp
   })
   return {
     destroy: () => {
@@ -160,8 +173,8 @@ export const createGame = async (
     },
     setConfig: (newConfig: Config) => {
       config = newConfig
-      particles.forEach((particle) => {
-        particle.graphics.scale = config.particleRadius
+      particlesT0.forEach((_, index) => {
+        particleGraphics[index].scale = config.particleRadius
       })
     },
   }
