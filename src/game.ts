@@ -57,8 +57,8 @@ function dampingForce(
   const damping = mult(rNorm, -dxdt * config.springDampingCoeff)
   const dampingForceAbs =
     (config.particleRadius * 2 - rAbs) * config.springCoeff
-  const dampingForce = add(mult(rNorm, dampingForceAbs), damping)
-  return dampingForce
+  const dampingForce = mult(rNorm, dampingForceAbs)
+  return add(dampingForce, damping)
 }
 
 export const forceFromParticle = (

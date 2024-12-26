@@ -14,6 +14,7 @@ import {
   CartesianGrid,
   XAxis,
   YAxis,
+  ReferenceLine,
 } from "recharts"
 
 export const Chart: FunctionComponent<{ config: Config }> = (props) => {
@@ -35,18 +36,8 @@ export const Chart: FunctionComponent<{ config: Config }> = (props) => {
     ).x,
   }))
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <LineChart
-        width={500}
-        height={300}
-        data={data}
-        margin={{
-          top: 5,
-          right: 30,
-          left: 20,
-          bottom: 5,
-        }}
-      >
+    <ResponsiveContainer width="100%" height={200}>
+      <LineChart width={500} height={300} data={data}>
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="x" />
         <YAxis dataKey="y" />
@@ -56,6 +47,13 @@ export const Chart: FunctionComponent<{ config: Config }> = (props) => {
           stroke="red"
           dot={false}
           isAnimationActive={false}
+        />
+        <ReferenceLine y={0} label="Max" stroke="black" />
+        <ReferenceLine
+          x={config.particleRadius}
+          label="R"
+          stroke="blue"
+          strokeDasharray="3 3"
         />
       </LineChart>
     </ResponsiveContainer>
@@ -132,7 +130,7 @@ function App() {
   const [particleRadius, setParticleRadius] = useState(5)
   const [mass, setMass] = useState(1)
   const [showChart, setShowChart] = useState(false)
-  const [rOffset, setROffset] = useState(0)
+  const [rOffset, setROffset] = useState(1)
   const game = useRef<Game | undefined>(undefined)
 
   const rightEl = useRef<HTMLDivElement>(null)
@@ -282,15 +280,17 @@ function App() {
           <div
             style={{
               position: "absolute",
-              bottom: 0,
-              width: "100vw",
-              height: "300px",
+              top: 0,
+              right: 0,
+              width: "500px",
+              height: "100vh",
               display: "flex",
               flexDirection: "column",
+              justifyContent: "stretch",
               backgroundColor: "white",
-              padding: "10px",
+              padding: "5px",
               boxSizing: "border-box",
-              borderTop: "1px solid lightgray",
+              borderLeft: "1px solid lightgray",
             }}
           >
             <Chart config={config} />
