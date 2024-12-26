@@ -1,6 +1,66 @@
 import "./App.css"
-import { useEffect, useRef, useState } from "react"
-import { createGame, Game } from "./game.ts"
+import { FunctionComponent, useEffect, useMemo, useRef, useState } from "react"
+import {
+  Config,
+  createGame,
+  forceFromParticle,
+  Game,
+  Particle,
+} from "./game.ts"
+import {
+  LineChart,
+  Line,
+  ResponsiveContainer,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+} from "recharts"
+
+export const Chart: FunctionComponent<{ config: Config }> = (props) => {
+  const { config } = props
+  const otherParticle: Particle = {
+    pos: { x: 0, y: 0 },
+    vel: { x: 0, y: 0 },
+  }
+  const xs = Array.from({ length: 100 }, (_, i) => i + 1)
+  const data = xs.map((x) => ({
+    x: x,
+    y: forceFromParticle(
+      {
+        pos: { x: x, y: 0 },
+        vel: { x: 0, y: 0 },
+      },
+      otherParticle,
+      config,
+    ).x,
+  }))
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <LineChart
+        width={500}
+        height={300}
+        data={data}
+        margin={{
+          top: 5,
+          right: 30,
+          left: 20,
+          bottom: 5,
+        }}
+      >
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis dataKey="x" />
+        <YAxis dataKey="y" />
+        <Line
+          type="monotone"
+          dataKey="y"
+          stroke="red"
+          dot={false}
+          isAnimationActive={false}
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  )
+}
 
 const useAsyncEffect = <T,>(
   task: () => Promise<T>,
@@ -71,6 +131,8 @@ function App() {
   const [springDampingCoeff, setSpringDampingCoeff] = useState(0)
   const [particleRadius, setParticleRadius] = useState(5)
   const [mass, setMass] = useState(1)
+  const [showChart, setShowChart] = useState(false)
+  const [rOffset, setROffset] = useState(0)
   const game = useRef<Game | undefined>(undefined)
 
   const rightEl = useRef<HTMLDivElement>(null)
@@ -85,6 +147,7 @@ function App() {
             springDampingCoeff,
             particleRadius,
             mass,
+            rOffset,
           })
         : Promise.resolve(undefined),
     (createdGame) => {
@@ -96,27 +159,37 @@ function App() {
     [particleCount],
   )
 
-  useEffect(() => {
-    game.current?.setConfig({
+  const config = useMemo(() => {
+    return {
       charge: particleCharge,
       springCoeff,
       airResistanceCoeff,
       springDampingCoeff,
       particleRadius,
       mass,
-    })
+      rOffset,
+    }
   }, [
-    airResistanceCoeff,
     particleCharge,
-    particleRadius,
     springCoeff,
+    airResistanceCoeff,
     springDampingCoeff,
+    particleRadius,
     mass,
+    rOffset,
   ])
+
+  useEffect(() => {
+    console.log("Setting config", config)
+    game.current?.setConfig(config)
+  }, [config])
 
   return (
     <div className="app">
       <div className="left">
+        <button onClick={() => setShowChart(!showChart)}>
+          Toggle chart : {showChart ? "True" : "False"}
+        </button>
         <h3>Particle Count</h3>
         <input
           type="range"
@@ -126,6 +199,17 @@ function App() {
           onChange={(e) => setParticleCount(Number(e.currentTarget.value))}
         />
         <div>{particleCount}</div>
+        <h3>r offset</h3>
+        <input
+          type="range"
+          min={-10}
+          max={10}
+          step={0.1}
+          value={rOffset}
+          onChange={(e) => setROffset(Number(e.currentTarget.value))}
+        />
+        <div>{rOffset}</div>
+
         <h3>Particle Charge</h3>
         <input
           type="range"
@@ -135,8 +219,8 @@ function App() {
           value={particleCharge}
           onChange={(e) => setParticleCharge(Number(e.currentTarget.value))}
         />
-        <div>{particleCharge}</div>
 
+        <div>{particleCharge}</div>
         <h3>Air Coefficient</h3>
         <input
           type="range"
@@ -147,7 +231,6 @@ function App() {
           onChange={(e) => setAirResistanceCoeff(Number(e.currentTarget.value))}
         />
         <div>{airResistanceCoeff}</div>
-
         <h3>Spring Coefficient</h3>
         <input
           type="range"
@@ -158,7 +241,6 @@ function App() {
           onChange={(e) => setSpringCoeff(Number(e.currentTarget.value))}
         />
         <div>{springCoeff}</div>
-
         <h3>Spring Damping Coefficient</h3>
         <input
           type="range"
@@ -176,7 +258,6 @@ function App() {
         >
           Critical: {2 * Math.sqrt(springCoeff * mass)}
         </button>
-
         <h3>Particle Radius</h3>
         <input
           type="range"
@@ -187,7 +268,6 @@ function App() {
           onChange={(e) => setParticleRadius(Number(e.currentTarget.value))}
         />
         <div>{particleRadius}</div>
-
         <h3>Particle Mass</h3>
         <input
           type="range"
@@ -198,6 +278,24 @@ function App() {
           onChange={(e) => setMass(Number(e.currentTarget.value))}
         />
         <div>{mass}</div>
+        {showChart && (
+          <div
+            style={{
+              position: "absolute",
+              bottom: 0,
+              width: "100vw",
+              height: "300px",
+              display: "flex",
+              flexDirection: "column",
+              backgroundColor: "white",
+              padding: "10px",
+              boxSizing: "border-box",
+              borderTop: "1px solid lightgray",
+            }}
+          >
+            <Chart config={config} />
+          </div>
+        )}
       </div>
 
       <div className="right" ref={rightEl}></div>

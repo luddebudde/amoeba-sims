@@ -1,4 +1,4 @@
-import { Application, Assets, Container, Graphics } from "pixi.js"
+import { Application, Container, Graphics } from "pixi.js"
 import {
   add,
   div,
@@ -16,7 +16,7 @@ import { randomInCircle } from "./math.ts"
 
 export type Game = Awaited<ReturnType<typeof createGame>>
 
-type Particle = {
+export type Particle = {
   pos: Vec
   vel: Vec
 }
@@ -30,18 +30,58 @@ const createParticleGraphic = (config: Config): Graphics => {
   redDot.circle(0, 0, 1) // x=0, y=0, radius=10
   redDot.scale = config.particleRadius
   redDot.fill()
-  // redDot.anchor.set(0.5);
-  // redDot.scale.set(0.5);
   return redDot
 }
 
-type Config = {
+export type Config = {
   charge: number
   springCoeff: number
   airResistanceCoeff: number
   springDampingCoeff: number
   particleRadius: number
   mass: number
+  rOffset: number
+}
+
+function dampingForce(
+  thisParticle: Particle,
+  otherParticle: Particle,
+  config: Config,
+) {
+  const r = sub(thisParticle.pos, otherParticle.pos)
+  const rAbs = length(r)
+  const rNorm = div(r, rAbs)
+
+  const relV = sub(thisParticle.vel, otherParticle.vel)
+  const dxdt = dot(relV, rNorm)
+  const damping = mult(rNorm, -dxdt * config.springDampingCoeff)
+  const dampingForceAbs =
+    (config.particleRadius * 2 - rAbs) * config.springCoeff
+  const dampingForce = add(mult(rNorm, dampingForceAbs), damping)
+  return dampingForce
+}
+
+export const forceFromParticle = (
+  thisParticle: Particle,
+  otherParticle: Particle,
+  config: Config,
+): Vec => {
+  const r = sub(thisParticle.pos, otherParticle.pos)
+  const rAbs = length(r)
+  const rNorm = div(r, rAbs)
+
+  const k1 = -config.springCoeff
+  const k2 = config.charge
+  const rPlus = rAbs + config.rOffset
+  const forceAbs = k1 / rPlus + k2 / rPlus ** 2
+
+  const force = mult(rNorm, forceAbs)
+  const damping =
+    rAbs > config.particleRadius * 2
+      ? origin
+      : dampingForce(thisParticle, otherParticle, config)
+
+  return add(force, damping)
 }
 
 function calculateForce(
@@ -66,35 +106,16 @@ function calculateForce(
         return force
       }
 
-      const r = sub(particle.pos, otherParticle.pos)
-      const rLen = length(r)
-      const rNorm = div(r, rLen)
+      const f = forceFromParticle(particle, otherParticle, config)
 
-      if (rLen > config.particleRadius * 2) {
-        const forceMagnitude =
-          config.charge /
-          Math.max(lengthSq(r), (config.particleRadius * 0.01) ** 2)
+      force.x += f.x
+      force.y += f.y
 
-        const deltaForce = mult(rNorm, forceMagnitude)
-        force.x += deltaForce.x
-        force.y += deltaForce.y
-      } else {
-        const relV = sub(particle.vel, otherParticle.vel)
-        const dxdt = dot(relV, rNorm)
-        const damping = mult(rNorm, -dxdt * config.springDampingCoeff)
-        const forceSpringLen =
-          (config.particleRadius * 2 - rLen) * config.springCoeff
-        const forceSpring = add(mult(rNorm, forceSpringLen), damping)
-
-        force.x += forceSpring.x
-        force.y += forceSpring.y
-      }
       return force
     },
     { x: 0, y: 0 },
   )
-  const force = sum(fieldForce, otherParticleForce, airResistance)
-  return force
+  return sum(fieldForce, otherParticleForce, airResistance)
 }
 
 export const createGame = async (
@@ -122,7 +143,6 @@ export const createGame = async (
     () => ({
       pos: randomInCircle(mapRadius),
       vel: randomInCircle(1),
-      // vel: { x: 0, y: 0 },
     }),
   )
   let particlesT1 = structuredClone(particlesT0)
