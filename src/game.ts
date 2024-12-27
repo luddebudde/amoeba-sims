@@ -1,4 +1,4 @@
-import { Application, Container, Graphics, Text, TextStyle } from "pixi.js"
+import { Application, Container, Graphics, Text, TextStyle } from 'pixi.js'
 import {
   add,
   div,
@@ -11,8 +11,8 @@ import {
   sub,
   sum,
   Vec,
-} from "./vec.ts"
-import { randomInCircle } from "./math.ts"
+} from './vec.ts'
+import { randomInCircle } from './math.ts'
 
 export type Game = Awaited<ReturnType<typeof createGame>>
 
@@ -82,7 +82,7 @@ export const forceFromParticle = (
     rAbs > config.particleRadius * 2
       ? origin
       : dampingForce(thisParticle, otherParticle, config)
-
+  //gbdgdgdd
   return add(force, damping)
 }
 
@@ -131,7 +131,7 @@ export const createGame = async (
   const app = new Application()
 
   // Initialize the application
-  await app.init({ background: "#292626", resizeTo: root })
+  await app.init({ background: '#292626', resizeTo: root })
   // #1099bb
   const world = new Container()
   world.position.set(app.screen.width / 2, app.screen.height / 2)
@@ -166,9 +166,9 @@ export const createGame = async (
   let kineticEnergy = 0
 
   const text = new Text({
-    text: "Hello",
+    text: 'Hello',
     style: new TextStyle({
-      fill: "white",
+      fill: 'white',
     }),
   })
 
