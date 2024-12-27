@@ -74,8 +74,12 @@ export const forceFromParticle = (
 
   const k1 = config.k1
   const k2 = config.k2
-  const rPlus = config.rScale * (rAbs - config.rOffset)
-  const forceAbs = k1 / rPlus ** 3 + k2 / rPlus ** 2
+  const rPlus = (1 / config.rScale) * rAbs - config.rOffset
+  const minMax = 1
+  const forceAbs = Math.max(
+    Math.min(k1 / rPlus ** 3 + k2 / rPlus ** 2, minMax),
+    -minMax,
+  )
 
   const force = mult(rNorm, forceAbs)
   const damping =

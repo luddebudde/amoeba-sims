@@ -16,6 +16,8 @@ import {
   YAxis,
   ReferenceLine,
 } from 'recharts'
+import { useLocalStorage } from '@uidotdev/usehooks'
+import { v4 } from 'uuid'
 
 export const Chart: FunctionComponent<{ config: Config }> = (props) => {
   const { config } = props
@@ -23,7 +25,7 @@ export const Chart: FunctionComponent<{ config: Config }> = (props) => {
     pos: { x: 0, y: 0 },
     vel: { x: 0, y: 0 },
   }
-  const xs = Array.from({ length: 100 }, (_, i) => i / 10)
+  const xs = Array.from({ length: 100 }, (_, i) => i / 5)
   const data = xs.map((x) => ({
     x: x,
     y: forceFromParticle(
@@ -135,10 +137,28 @@ const useAsyncEffect = <T,>(
   }, dependencies)
 }
 
+type NamedConfig = {
+  name: string
+  id: string
+  config: Config
+}
+
+type ConfigStorage = {
+  configs: NamedConfig[]
+}
+
 function App() {
   const [particleCount, setParticleCount] = useState(100)
   const [showChart, setShowChart] = useState(false)
   const game = useRef<Game | undefined>(undefined)
+  const [newConfigName, setNewConfigName] = useState('')
+
+  const [configStorage, saveConfigStorage] = useLocalStorage<ConfigStorage>(
+    'configStorage',
+    {
+      configs: [],
+    },
+  )
 
   const [config, setConfig] = useState<Config>({
     airResistanceCoeff: 0,
@@ -211,7 +231,7 @@ function App() {
         <input
           type="range"
           min={0}
-          max={10}
+          max={1}
           step={0.001}
           value={config.rScale}
           onChange={(e) => {
@@ -229,8 +249,8 @@ function App() {
         <h3>Near distance repulsion</h3>
         <input
           type="range"
-          min={-300}
-          max={300}
+          min={-3}
+          max={3}
           step={0.01}
           value={config.k1}
           onChange={(e) => {
@@ -400,6 +420,64 @@ force = k1 / rPlus ** 3 + k2 / rPlus ** 2`}
             <Chart config={config} />
           </div>
         )}
+
+        <div>
+          <div>
+            <input
+              onChange={(e) => setNewConfigName(e.currentTarget.value)}
+              value={newConfigName}
+            />
+            <button
+              onClick={(e) =>
+                saveConfigStorage((configStorage) => {
+                  return {
+                    configs: [
+                      { name: newConfigName, id: v4(), config: config },
+                      ...configStorage.configs,
+                    ],
+                  }
+                })
+              }
+            >
+              Save
+            </button>
+            <button
+              onClick={(e) =>
+                saveConfigStorage((configStorage) => {
+                  return {
+                    configs: [],
+                  }
+                })
+              }
+            >
+              delete all
+            </button>
+          </div>
+
+          <div>
+            {configStorage?.configs.map((namedConfig) => (
+              <div>
+                {namedConfig.name}{' '}
+                <button onClick={(e) => setConfig(namedConfig.config)}>
+                  Load
+                </button>
+                <button
+                  onClick={(e) =>
+                    saveConfigStorage((configStorage) => {
+                      return {
+                        configs: configStorage.configs.filter(
+                          (it) => it.id !== namedConfig.id,
+                        ),
+                      }
+                    })
+                  }
+                >
+                  supprimer
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div
