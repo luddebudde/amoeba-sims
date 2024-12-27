@@ -74,7 +74,7 @@ export const forceFromParticle = (
 
   const k1 = config.k1
   const k2 = config.k2
-  const rPlus = config.rScale * rAbs + config.rOffset
+  const rPlus = config.rScale * (rAbs - config.rOffset)
   const forceAbs = k1 / rPlus ** 3 + k2 / rPlus ** 2
 
   const force = mult(rNorm, forceAbs)
@@ -139,7 +139,7 @@ export const createGame = async (
   // Append the application canvas to the document body
   root.appendChild(app.canvas)
 
-  const mapRadius = Math.max(app.screen.width, app.screen.height) / 2
+  const mapRadius = Math.min(app.screen.width, app.screen.height) / 2
 
   let particlesT0: Particle[] = Array.from({ length: particleCount }).map(
     () => ({
@@ -176,6 +176,8 @@ export const createGame = async (
   app.stage.addChild(world)
 
   app.ticker.add((time) => {
+    // console.log(particlesT0)
+
     const dt = time.deltaTime
 
     kineticEnergy = particlesT0.reduce((acc, particle) => {

@@ -1,12 +1,12 @@
-import "./App.css"
-import { FunctionComponent, useEffect, useMemo, useRef, useState } from "react"
+import './App.css'
+import { FunctionComponent, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Config,
   createGame,
   forceFromParticle,
   Game,
   Particle,
-} from "./game.ts"
+} from './game.ts'
 import {
   LineChart,
   Line,
@@ -15,7 +15,7 @@ import {
   XAxis,
   YAxis,
   ReferenceLine,
-} from "recharts"
+} from 'recharts'
 
 export const Chart: FunctionComponent<{ config: Config }> = (props) => {
   const { config } = props
@@ -40,11 +40,17 @@ export const Chart: FunctionComponent<{ config: Config }> = (props) => {
     max: 0.1,
   }
   return (
-    <ResponsiveContainer width="100%" height={400}>
+    <ResponsiveContainer
+      width="100%"
+      height={400}
+    >
       <LineChart data={data}>
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="x" />
-        <YAxis dataKey="y" {...minMax} />
+        <YAxis
+          dataKey="y"
+          {...minMax}
+        />
         <Line
           type="monotone"
           dataKey="y"
@@ -52,7 +58,11 @@ export const Chart: FunctionComponent<{ config: Config }> = (props) => {
           dot={false}
           isAnimationActive={false}
         />
-        <ReferenceLine y={0} label="Max" stroke="black" />
+        <ReferenceLine
+          y={0}
+          label="Max"
+          stroke="black"
+        />
         <ReferenceLine
           x={config.particleRadius}
           label="R"
@@ -73,32 +83,32 @@ const useAsyncEffect = <T,>(
   useEffect(() => {
     let state:
       | {
-          tag: "pending"
+          tag: 'pending'
         }
       | {
-          tag: "done"
+          tag: 'done'
           data: T
         }
       | {
-          tag: "aborted"
+          tag: 'aborted'
         } = {
-      tag: "pending",
+      tag: 'pending',
     }
     task().then((data) => {
       switch (state.tag) {
-        case "pending": {
+        case 'pending': {
           state = {
-            tag: "done",
+            tag: 'done',
             data,
           }
           onComplete(data)
           break
         }
-        case "done": {
+        case 'done': {
           // Should not happen
           break
         }
-        case "aborted": {
+        case 'aborted': {
           cleanup(data)
           break
         }
@@ -106,17 +116,17 @@ const useAsyncEffect = <T,>(
     })
     return () => {
       switch (state.tag) {
-        case "pending": {
+        case 'pending': {
           state = {
-            tag: "aborted",
+            tag: 'aborted',
           }
           break
         }
-        case "done": {
+        case 'done': {
           cleanup(state.data)
           break
         }
-        case "aborted": {
+        case 'aborted': {
           // Should not happen
           break
         }
@@ -127,34 +137,27 @@ const useAsyncEffect = <T,>(
 
 function App() {
   const [particleCount, setParticleCount] = useState(100)
-  const [k1, setK1] = useState(0)
-  const [k2, setK2] = useState(0)
-  const [springCoeff, setSpringCoeff] = useState(0.0)
-  const [airResistanceCoeff, setAirResistanceCoeff] = useState(0)
-  const [springDampingCoeff, setSpringDampingCoeff] = useState(0)
-  const [particleRadius, setParticleRadius] = useState(5)
-  const [mass, setMass] = useState(1)
   const [showChart, setShowChart] = useState(false)
-  const [rOffset, setROffset] = useState(0)
-  const [rScale, setRScale] = useState(1)
   const game = useRef<Game | undefined>(undefined)
+
+  const [config, setConfig] = useState<Config>({
+    airResistanceCoeff: 0,
+    k1: 0,
+    k2: 0,
+    mass: 1,
+    particleRadius: 5,
+    rOffset: 0,
+    rScale: 1,
+    springCoeff: 0,
+    springDampingCoeff: 0,
+  })
 
   const rightEl = useRef<HTMLDivElement>(null)
 
   useAsyncEffect(
     () =>
       rightEl.current
-        ? createGame(rightEl.current, particleCount, {
-            rOffset,
-            rScale,
-            k1,
-            k2,
-            springCoeff,
-            airResistanceCoeff,
-            springDampingCoeff,
-            particleRadius,
-            mass,
-          })
+        ? createGame(rightEl.current, particleCount, config)
         : Promise.resolve(undefined),
     (createdGame) => {
       game.current = createdGame
@@ -165,32 +168,7 @@ function App() {
     [particleCount],
   )
 
-  const config = useMemo<Config>(() => {
-    return {
-      rOffset,
-      rScale,
-      k1,
-      k2,
-      springCoeff,
-      airResistanceCoeff,
-      springDampingCoeff,
-      particleRadius,
-      mass,
-    }
-  }, [
-    rOffset,
-    rScale,
-    k1,
-    k2,
-    springCoeff,
-    airResistanceCoeff,
-    springDampingCoeff,
-    particleRadius,
-    mass,
-  ])
-
   useEffect(() => {
-    console.log("Setting config", config)
     game.current?.setConfig(config)
   }, [config])
 
@@ -198,7 +176,7 @@ function App() {
     <div className="app">
       <div className="left">
         <button onClick={() => setShowChart(!showChart)}>
-          Toggle chart : {showChart ? "True" : "False"}
+          Toggle chart : {showChart ? 'True' : 'False'}
         </button>
         <h3>Particle Count</h3>
         <input
@@ -213,46 +191,78 @@ function App() {
         <h3>r offset</h3>
         <input
           type="range"
-          min={-10}
-          max={10}
-          step={0.1}
-          value={rOffset}
-          onChange={(e) => setROffset(Number(e.currentTarget.value))}
+          min={-5}
+          max={5}
+          step={0.001}
+          value={config.rOffset}
+          onChange={(e) => {
+            const value = Number(e.currentTarget.value)
+            setConfig((config) => {
+              return {
+                ...config,
+                rOffset: value,
+              }
+            })
+          }}
         />
-        <div>{rOffset}</div>
+        <div>{config.rOffset}</div>
 
         <h3>r scale</h3>
         <input
           type="range"
           min={0}
-          max={1}
+          max={10}
           step={0.001}
-          value={rScale}
-          onChange={(e) => setRScale(Number(e.currentTarget.value))}
+          value={config.rScale}
+          onChange={(e) => {
+            const value = Number(e.currentTarget.value)
+            setConfig((config) => {
+              return {
+                ...config,
+                rScale: value,
+              }
+            })
+          }}
         />
-        <div>{rScale}</div>
+        <div>{config.rScale}</div>
 
-        <h3>k1</h3>
+        <h3>Near distance repulsion</h3>
         <input
           type="range"
-          min={-1}
-          max={1}
+          min={-300}
+          max={300}
           step={0.01}
-          value={k1}
-          onChange={(e) => setK1(Number(e.currentTarget.value))}
+          value={config.k1}
+          onChange={(e) => {
+            const value = Number(e.currentTarget.value)
+            setConfig((config) => {
+              return {
+                ...config,
+                k1: value,
+              }
+            })
+          }}
         />
-        <div>{k1}</div>
+        <div>{config.k1}</div>
 
-        <h3>k2</h3>
+        <h3>Graviation constant</h3>
         <input
           type="range"
-          min={-1}
-          max={1}
+          min={-10}
+          max={10}
           step={0.1}
-          value={k2}
-          onChange={(e) => setK2(Number(e.currentTarget.value))}
+          value={config.k2}
+          onChange={(e) => {
+            const value = Number(e.currentTarget.value)
+            setConfig((config) => {
+              return {
+                ...config,
+                k2: value,
+              }
+            })
+          }}
         />
-        <div>{k2}</div>
+        <div>{config.k2}</div>
         <pre>
           <code>
             {` 
@@ -267,72 +277,124 @@ force = k1 / rPlus ** 3 + k2 / rPlus ** 2`}
           min={-10}
           max={10}
           step={0.01}
-          value={airResistanceCoeff}
-          onChange={(e) => setAirResistanceCoeff(Number(e.currentTarget.value))}
+          value={config.airResistanceCoeff}
+          onChange={(e) => {
+            const value = Number(e.currentTarget.value)
+            setConfig((config) => {
+              return {
+                ...config,
+                airResistanceCoeff: value,
+              }
+            })
+          }}
         />
-        <div>{airResistanceCoeff}</div>
+        <div>{config.airResistanceCoeff}</div>
+
         <h3>Spring Coefficient</h3>
         <input
           type="range"
           min={0}
           max={0.1}
           step={0.001}
-          value={springCoeff}
-          onChange={(e) => setSpringCoeff(Number(e.currentTarget.value))}
+          value={config.springCoeff}
+          onChange={(e) => {
+            const value = Number(e.currentTarget.value)
+            setConfig((config) => {
+              return {
+                ...config,
+                springCoeff: value,
+              }
+            })
+          }}
         />
-        <div>{springCoeff}</div>
+        <div>{config.springCoeff}</div>
+
         <h3>Spring Damping Coefficient</h3>
         <input
           type="range"
           min={0}
           max={0.1}
           step={0.0001}
-          value={springDampingCoeff}
-          onChange={(e) => setSpringDampingCoeff(Number(e.currentTarget.value))}
+          value={config.springDampingCoeff}
+          onChange={(e) => {
+            const value = Number(e.currentTarget.value)
+            setConfig((config) => {
+              return {
+                ...config,
+                springDampingCoeff: value,
+              }
+            })
+          }}
         />
-        <div>{springDampingCoeff}</div>
+        <div>{config.springDampingCoeff}</div>
+
         <button
           onClick={() => {
-            setSpringDampingCoeff(2 * Math.sqrt(springCoeff * mass))
+            setConfig((config) => {
+              return {
+                ...config,
+                springDampingCoeff:
+                  2 * Math.sqrt(config.springCoeff * config.mass),
+              }
+            })
           }}
         >
-          Critical: {2 * Math.sqrt(springCoeff * mass)}
+          Critical: {2 * Math.sqrt(config.springCoeff * config.mass)}
         </button>
+
         <h3>Particle Radius</h3>
         <input
           type="range"
           min={1}
           max={15}
           step={1}
-          value={particleRadius}
-          onChange={(e) => setParticleRadius(Number(e.currentTarget.value))}
+          value={config.particleRadius}
+          onChange={(e) => {
+            const value = Number(e.currentTarget.value)
+            setConfig((config) => {
+              return {
+                ...config,
+                particleRadius: value,
+              }
+            })
+          }}
         />
-        <div>{particleRadius}</div>
+        <div>{config.particleRadius}</div>
+
         <h3>Particle Mass</h3>
         <input
           type="range"
           min={0.1}
           max={10}
           step={0.01}
-          value={mass}
-          onChange={(e) => setMass(Number(e.currentTarget.value))}
+          value={config.mass}
+          onChange={(e) => {
+            const value = Number(e.currentTarget.value)
+            setConfig((config) => {
+              return {
+                ...config,
+                mass: value,
+              }
+            })
+          }}
         />
-        <div>{mass}</div>
+        <div>{config.mass}</div>
+
         {showChart && (
           <div
             style={{
-              position: "absolute",
+              position: 'absolute',
               top: 0,
               right: 0,
-              width: "500px",
-              height: "100vh",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "stretch",
-              backgroundColor: "white",
-              padding: "5px",
-              boxSizing: "border-box",
-              borderLeft: "1px solid lightgray",
+              width: '500px',
+              height: '100vh',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'stretch',
+              backgroundColor: 'white',
+              padding: '5px',
+              boxSizing: 'border-box',
+              borderLeft: '1px solid lightgray',
             }}
           >
             <Chart config={config} />
@@ -340,7 +402,10 @@ force = k1 / rPlus ** 3 + k2 / rPlus ** 2`}
         )}
       </div>
 
-      <div className="right" ref={rightEl}></div>
+      <div
+        className="right"
+        ref={rightEl}
+      ></div>
     </div>
   )
 }
