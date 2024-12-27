@@ -1,4 +1,4 @@
-import { Application, Container, Graphics } from "pixi.js"
+import { Application, Container, Graphics, Text, TextStyle } from "pixi.js"
 import {
   add,
   div,
@@ -34,13 +34,15 @@ const createParticleGraphic = (config: Config): Graphics => {
 }
 
 export type Config = {
-  charge: number
+  rOffset: number
+  rScale: number
+  k1: number
+  k2: number
   springCoeff: number
   airResistanceCoeff: number
   springDampingCoeff: number
   particleRadius: number
   mass: number
-  rOffset: number
 }
 
 function dampingForce(
@@ -70,10 +72,10 @@ export const forceFromParticle = (
   const rAbs = length(r)
   const rNorm = div(r, rAbs)
 
-  const k1 = -config.springCoeff
-  const k2 = config.charge
-  const rPlus = rAbs + config.rOffset
-  const forceAbs = k1 / rPlus + k2 / rPlus ** 2
+  const k1 = config.k1
+  const k2 = config.k2
+  const rPlus = config.rScale * rAbs + config.rOffset
+  const forceAbs = k1 / rPlus ** 3 + k2 / rPlus ** 2
 
   const force = mult(rNorm, forceAbs)
   const damping =
@@ -137,7 +139,7 @@ export const createGame = async (
   // Append the application canvas to the document body
   root.appendChild(app.canvas)
 
-  const mapRadius = Math.min(app.screen.width, app.screen.height) / 2
+  const mapRadius = Math.max(app.screen.width, app.screen.height) / 2
 
   let particlesT0: Particle[] = Array.from({ length: particleCount }).map(
     () => ({
@@ -161,10 +163,26 @@ export const createGame = async (
     world.addChild(particle)
   })
 
+  let kineticEnergy = 0
+
+  const text = new Text({
+    text: "Hello",
+    style: new TextStyle({
+      fill: "white",
+    }),
+  })
+
+  app.stage.addChild(text)
   app.stage.addChild(world)
 
   app.ticker.add((time) => {
     const dt = time.deltaTime
+
+    kineticEnergy = particlesT0.reduce((acc, particle) => {
+      return acc + 0.5 * config.mass * lengthSq(particle.vel)
+    }, 0)
+
+    text.text = `Kinetic Energy: ${kineticEnergy.toFixed(2)} J`
 
     particlesT0.forEach((particleT0, index) => {
       const particleT1 = particlesT1[index]

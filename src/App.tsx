@@ -23,7 +23,7 @@ export const Chart: FunctionComponent<{ config: Config }> = (props) => {
     pos: { x: 0, y: 0 },
     vel: { x: 0, y: 0 },
   }
-  const xs = Array.from({ length: 100 }, (_, i) => i + 1)
+  const xs = Array.from({ length: 100 }, (_, i) => i / 10)
   const data = xs.map((x) => ({
     x: x,
     y: forceFromParticle(
@@ -35,12 +35,16 @@ export const Chart: FunctionComponent<{ config: Config }> = (props) => {
       config,
     ).x,
   }))
+  const minMax = {
+    min: -0.1,
+    max: 0.1,
+  }
   return (
-    <ResponsiveContainer width="100%" height={200}>
-      <LineChart width={500} height={300} data={data}>
+    <ResponsiveContainer width="100%" height={400}>
+      <LineChart data={data}>
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="x" />
-        <YAxis dataKey="y" />
+        <YAxis dataKey="y" {...minMax} />
         <Line
           type="monotone"
           dataKey="y"
@@ -123,14 +127,16 @@ const useAsyncEffect = <T,>(
 
 function App() {
   const [particleCount, setParticleCount] = useState(100)
-  const [particleCharge, setParticleCharge] = useState(0)
+  const [k1, setK1] = useState(0)
+  const [k2, setK2] = useState(0)
   const [springCoeff, setSpringCoeff] = useState(0.0)
   const [airResistanceCoeff, setAirResistanceCoeff] = useState(0)
   const [springDampingCoeff, setSpringDampingCoeff] = useState(0)
   const [particleRadius, setParticleRadius] = useState(5)
   const [mass, setMass] = useState(1)
   const [showChart, setShowChart] = useState(false)
-  const [rOffset, setROffset] = useState(1)
+  const [rOffset, setROffset] = useState(0)
+  const [rScale, setRScale] = useState(1)
   const game = useRef<Game | undefined>(undefined)
 
   const rightEl = useRef<HTMLDivElement>(null)
@@ -139,13 +145,15 @@ function App() {
     () =>
       rightEl.current
         ? createGame(rightEl.current, particleCount, {
-            charge: particleCharge,
+            rOffset,
+            rScale,
+            k1,
+            k2,
             springCoeff,
             airResistanceCoeff,
             springDampingCoeff,
             particleRadius,
             mass,
-            rOffset,
           })
         : Promise.resolve(undefined),
     (createdGame) => {
@@ -157,24 +165,28 @@ function App() {
     [particleCount],
   )
 
-  const config = useMemo(() => {
+  const config = useMemo<Config>(() => {
     return {
-      charge: particleCharge,
+      rOffset,
+      rScale,
+      k1,
+      k2,
       springCoeff,
       airResistanceCoeff,
       springDampingCoeff,
       particleRadius,
       mass,
-      rOffset,
     }
   }, [
-    particleCharge,
+    rOffset,
+    rScale,
+    k1,
+    k2,
     springCoeff,
     airResistanceCoeff,
     springDampingCoeff,
     particleRadius,
     mass,
-    rOffset,
   ])
 
   useEffect(() => {
@@ -197,6 +209,7 @@ function App() {
           onChange={(e) => setParticleCount(Number(e.currentTarget.value))}
         />
         <div>{particleCount}</div>
+
         <h3>r offset</h3>
         <input
           type="range"
@@ -208,22 +221,51 @@ function App() {
         />
         <div>{rOffset}</div>
 
-        <h3>Particle Charge</h3>
-        <input
-          type="range"
-          min={-10}
-          max={10}
-          step={0.1}
-          value={particleCharge}
-          onChange={(e) => setParticleCharge(Number(e.currentTarget.value))}
-        />
-
-        <div>{particleCharge}</div>
-        <h3>Air Coefficient</h3>
+        <h3>r scale</h3>
         <input
           type="range"
           min={0}
           max={1}
+          step={0.001}
+          value={rScale}
+          onChange={(e) => setRScale(Number(e.currentTarget.value))}
+        />
+        <div>{rScale}</div>
+
+        <h3>k1</h3>
+        <input
+          type="range"
+          min={-1}
+          max={1}
+          step={0.01}
+          value={k1}
+          onChange={(e) => setK1(Number(e.currentTarget.value))}
+        />
+        <div>{k1}</div>
+
+        <h3>k2</h3>
+        <input
+          type="range"
+          min={-1}
+          max={1}
+          step={0.1}
+          value={k2}
+          onChange={(e) => setK2(Number(e.currentTarget.value))}
+        />
+        <div>{k2}</div>
+        <pre>
+          <code>
+            {` 
+rPlus = rScale * rAbs + rOffset 
+force = k1 / rPlus ** 3 + k2 / rPlus ** 2`}
+          </code>
+        </pre>
+
+        <h3>Air Coefficient</h3>
+        <input
+          type="range"
+          min={-10}
+          max={10}
           step={0.01}
           value={airResistanceCoeff}
           onChange={(e) => setAirResistanceCoeff(Number(e.currentTarget.value))}
