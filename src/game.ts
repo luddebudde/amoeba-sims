@@ -154,6 +154,7 @@ export const createGame = async (
     }),
   )
   let particlesT1 = structuredClone(particlesT0)
+  let particlesTHalf = structuredClone(particlesT0)
 
   const particleGraphics: Graphics[] = particlesT0.map(() =>
     createParticleGraphic(config),
@@ -186,6 +187,8 @@ export const createGame = async (
 
     const dt = time.deltaTime
 
+    console.log(dt)
+
     kineticEnergy = particlesT0.reduce((acc, particle) => {
       return acc + 0.5 * config.mass * lengthSq(particle.vel)
     }, 0)
@@ -193,18 +196,56 @@ export const createGame = async (
     text.text = `Kinetic Energy: ${kineticEnergy.toFixed(2)} J`
 
     particlesT0.forEach((particleT0, index) => {
-      const particleT1 = particlesT1[index]
+      const particleTHalf = particlesTHalf[index]
       const force = calculateForce(particleT0, mapRadius, config, particlesT0)
 
       const acc = div(force, config.mass)
-      const dVel = mult(acc, dt)
+      const dVel = mult(acc, dt / 2)
 
-      const v1 = sum(particleT0.vel, dVel)
-      particleT1.vel = v1
-      particleT1.pos = sum(particleT0.pos, v1)
+      const v = sum(particleT0.vel, dVel)
+      particleTHalf.vel = v
+      particleTHalf.pos = sum(particleT0.pos, v)
     })
 
-    // Draw the particles
+    particlesT0.forEach((particleT0, index) => {
+      const particleTHalf = particlesTHalf[index]
+      const particleT1 = particlesT1[index]
+
+      particleT1.pos = sum(particleT0.pos, mult(particleTHalf.vel, dt))
+      particleTHalf.pos = particleT1.pos
+    })
+
+    particlesT0.forEach((particleT0, index) => {
+      const particleTHalf = particlesTHalf[index]
+      const particleT1 = particlesT1[index]
+
+      const force = calculateForce(
+        particleTHalf,
+        mapRadius,
+        config,
+        particlesTHalf,
+      )
+
+      const acc = div(force, config.mass)
+      const dVel = mult(acc, dt / 2)
+
+      const v = sum(particleTHalf.vel, dVel)
+      particleT1.vel = v
+    })
+
+    // particlesT0.forEach((particleT0, index) => {
+    //   const particleT1 = particlesT1[index]
+    //   const force = calculateForce(particleT0, mapRadius, config, particlesT0)
+
+    //   const acc = div(force, config.mass)
+    //   const dVel = mult(acc, dt)
+
+    //   const v1 = sum(particleT0.vel, dVel)
+    //   particleT1.vel = v1
+    //   particleT1.pos = sum(particleT0.pos, v1)
+    // })
+
+    //   // Draw the particles
     particlesT1.forEach((particle, index) => {
       particleGraphics[index].position.copyFrom(particle.pos)
     })
@@ -212,6 +253,7 @@ export const createGame = async (
     particlesT0 = particlesT1
     particlesT1 = tmp
   })
+
   return {
     destroy: () => {
       root.removeChild(app.canvas)
