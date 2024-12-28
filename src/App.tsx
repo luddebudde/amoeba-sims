@@ -18,6 +18,15 @@ import {
 } from 'recharts'
 import { useLocalStorage } from '@uidotdev/usehooks'
 import { v4 } from 'uuid'
+import {
+  array,
+  failure,
+  object,
+  parseNumber,
+  parseString,
+  withDefault,
+} from 'pure-parse'
+import parse from 'parse-svg-path'
 
 export const Chart: FunctionComponent<{ config: Config }> = (props) => {
   const { config } = props
@@ -147,23 +156,45 @@ type ConfigStorage = {
   configs: NamedConfig[]
 }
 
+const parseConfig = object<Config>({
+  airResistanceCoeff: parseNumber,
+  k1: parseNumber,
+  k2: parseNumber,
+  mass: parseNumber,
+  maxAbs: withDefault(parseNumber, 1),
+  particleRadius: parseNumber,
+  rOffset: parseNumber,
+  rScale: parseNumber,
+  springCoeff: parseNumber,
+  springDampingCoeff: parseNumber,
+})
+
+const parseNamedConfig = object<NamedConfig>({
+  name: parseString,
+  id: parseString,
+  config: parseConfig,
+})
+
+const parseConfigStorage = object<ConfigStorage>({
+  configs: array(parseNamedConfig),
+})
+
 function App() {
   const [particleCount, setParticleCount] = useState(100)
-  const [showChart, setShowChart] = useState(false)
+  const [showChart, setShowChart] = useState(true)
   const game = useRef<Game | undefined>(undefined)
   const [newConfigName, setNewConfigName] = useState('')
 
-  const [configStorage, saveConfigStorage] = useLocalStorage<ConfigStorage>(
-    'configStorage',
-    {
+  const [configStorageUnkown, saveConfigStorageUnknown] =
+    useLocalStorage<unknown>('configStorage', {
       configs: [],
-    },
-  )
+    })
 
   const [config, setConfig] = useState<Config>({
     airResistanceCoeff: 0,
     k1: 0,
     k2: 0,
+    maxAbs: 1,
     mass: 1,
     particleRadius: 5,
     rOffset: 0,
@@ -191,6 +222,14 @@ function App() {
   useEffect(() => {
     game.current?.setConfig(config)
   }, [config])
+
+  const configStorageResult = parseConfigStorage(configStorageUnkown)
+
+  if (configStorageResult.tag === 'failure') {
+    return 'Could not parse config storage lolololol'
+  }
+
+  const configStorage = configStorageResult.value
 
   return (
     <div className="app">
@@ -290,6 +329,25 @@ rPlus = rScale * rAbs + rOffset
 force = k1 / rPlus ** 3 + k2 / rPlus ** 2`}
           </code>
         </pre>
+
+        <h3>Max force</h3>
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={config.maxAbs}
+          onChange={(e) => {
+            const value = Number(e.currentTarget.value)
+            setConfig((config) => {
+              return {
+                ...config,
+                maxAbs: value,
+              }
+            })
+          }}
+        />
+        <div>{config.maxAbs}</div>
 
         <h3>Air Coefficient</h3>
         <input
@@ -429,11 +487,18 @@ force = k1 / rPlus ** 3 + k2 / rPlus ** 2`}
             />
             <button
               onClick={(e) =>
-                saveConfigStorage((configStorage) => {
+                saveConfigStorageUnknown((configStorage: unknown) => {
+                  const result = parseConfigStorage(configStorage)
+
+                  if (result.tag === 'failure') {
+                    alert('FAILED TO PARSEEEEEEEEEEEEEE')
+                    return
+                  }
+
                   return {
                     configs: [
                       { name: newConfigName, id: v4(), config: config },
-                      ...configStorage.configs,
+                      ...result.value.configs,
                     ],
                   }
                 })
@@ -443,7 +508,7 @@ force = k1 / rPlus ** 3 + k2 / rPlus ** 2`}
             </button>
             <button
               onClick={(e) =>
-                saveConfigStorage((configStorage) => {
+                saveConfigStorageUnknown((configStorage: unknown) => {
                   return {
                     configs: [],
                   }
@@ -463,9 +528,15 @@ force = k1 / rPlus ** 3 + k2 / rPlus ** 2`}
                 </button>
                 <button
                   onClick={(e) =>
-                    saveConfigStorage((configStorage) => {
+                    saveConfigStorageUnknown((configStorage: unknown) => {
+                      const result = parseConfigStorage(configStorage)
+
+                      if (result.tag === 'failure') {
+                        alert('FAILED TO PARSEEEEEEEEEEEEEE')
+                        return
+                      }
                       return {
-                        configs: configStorage.configs.filter(
+                        configs: result.value.configs.filter(
                           (it) => it.id !== namedConfig.id,
                         ),
                       }

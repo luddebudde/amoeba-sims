@@ -38,6 +38,7 @@ export type Config = {
   rScale: number
   k1: number
   k2: number
+  maxAbs: number
   springCoeff: number
   airResistanceCoeff: number
   springDampingCoeff: number
@@ -75,12 +76,13 @@ export const forceFromParticle = (
   const k1 = config.k1
   const k2 = config.k2
   const rPlus = (1 / config.rScale) * rAbs - config.rOffset
-  const minMax = 1
   const forceAbs = Math.max(
-    Math.min(k1 / rPlus ** 3 + k2 / rPlus ** 2, minMax),
-    -minMax,
+    Math.min(k1 / rPlus ** 3 + k2 / rPlus ** 2, config.maxAbs),
+    -config.maxAbs,
   )
 
+  if (Math.random() > 0.9998) {
+  }
   const force = mult(rNorm, forceAbs)
   const damping =
     rAbs > config.particleRadius * 2
