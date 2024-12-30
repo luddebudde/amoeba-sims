@@ -4,4 +4,4 @@
 
 - Add More Particle types
 - Better Visuals
-- Improved Slider Componoent
+- [ ] Improved Slider Componoent

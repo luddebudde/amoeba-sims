@@ -1,4 +1,11 @@
-import { Application, Container, Graphics, Text, TextStyle } from 'pixi.js'
+import {
+  Application,
+  Container,
+  Geometry,
+  Graphics,
+  Text,
+  TextStyle,
+} from 'pixi.js'
 import {
   add,
   div,
@@ -13,6 +20,9 @@ import {
   Vec,
 } from './vec.ts'
 import { randomInCircle } from './math.ts'
+import * as PIXI from 'pixi.js'
+import vertex from './fade.vert?raw'
+import fragment from './fade.frag?raw'
 
 export type Game = Awaited<ReturnType<typeof createGame>>
 
@@ -182,9 +192,10 @@ export const createGame = async (
   app.stage.addChild(text)
   app.stage.addChild(world)
 
-  app.ticker.add((time) => {
-    // console.log(particlesT0)
+  // mesh.position.set(-100, -100)
+  // app.stage.addChild(mesh)
 
+  app.ticker.add((time) => {
     const dt = time.deltaTime
 
     console.log(dt)
@@ -267,3 +278,46 @@ export const createGame = async (
     },
   }
 }
+
+const geometry = new PIXI.Geometry({
+  attributes: {
+    aPosition: [
+      // x y
+      0, 0,
+      // x y
+      1, 0,
+      // x y
+      0, 1,
+      // x y
+      1, 1,
+    ].map((it) => it * 1000),
+    aUV: [
+      // x y
+      0, 0,
+      // x y
+      1, 0,
+      // x y
+      0, 1,
+      // x y
+      1, 1,
+    ],
+  },
+  indexBuffer: [
+    // First
+    0, 1, 2,
+    // Second
+    1, 2, 3,
+  ],
+})
+
+const shader = PIXI.Shader.from({
+  gl: {
+    vertex,
+    fragment,
+  },
+})
+
+const mesh = new PIXI.Mesh({
+  geometry,
+  shader,
+})

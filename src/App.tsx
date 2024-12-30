@@ -181,7 +181,7 @@ const parseConfigStorage = object<ConfigStorage>({
 
 function App() {
   const [particleCount, setParticleCount] = useState(100)
-  const [showChart, setShowChart] = useState(true)
+  const [showChart, setShowChart] = useState(false)
   const game = useRef<Game | undefined>(undefined)
   const [newConfigName, setNewConfigName] = useState('')
 
