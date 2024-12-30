@@ -237,91 +237,86 @@ function App() {
         <button onClick={() => setShowChart(!showChart)}>
           Toggle chart : {showChart ? 'True' : 'False'}
         </button>
+
         <h3>Particle Count</h3>
-        <input
-          type="range"
+
+        <Input
+          value={particleCount}
+          onChange={(newValue: number) => {
+            setParticleCount(newValue)
+          }}
           min={0}
           max={1000}
-          value={particleCount}
-          onChange={(e) => setParticleCount(Number(e.currentTarget.value))}
+          step={1}
         />
-        <div>{particleCount}</div>
 
         <h3>r offset</h3>
-        <input
-          type="range"
+
+        <Input
+          value={config.rOffset}
+          onChange={(newValue: number) => {
+            setConfig((config) => {
+              return {
+                ...config,
+                rOffset: newValue,
+              }
+            })
+          }}
           min={-5}
           max={5}
           step={0.001}
-          value={config.rOffset}
-          onChange={(e) => {
-            const value = Number(e.currentTarget.value)
+        />
+
+        <h3>r scale</h3>
+        <Input
+          value={config.rScale}
+          onChange={(newValue: number) => {
             setConfig((config) => {
               return {
                 ...config,
-                rOffset: value,
+                rScale: newValue,
               }
             })
           }}
-        />
-        <div>{config.rOffset}</div>
-
-        <h3>r scale</h3>
-        <input
-          type="range"
           min={0}
           max={10}
           step={0.001}
-          value={config.rScale}
-          onChange={(e) => {
-            const value = Number(e.currentTarget.value)
+        />
+
+        <h3>Near distance repulsion</h3>
+
+        <Input
+          value={config.k1}
+          onChange={(newValue: number) => {
             setConfig((config) => {
               return {
                 ...config,
-                rScale: value,
+                k1: newValue,
               }
             })
           }}
-        />
-        <div>{config.rScale}</div>
-
-        <h3>Near distance repulsion</h3>
-        <input
-          type="range"
           min={-3}
           max={3}
           step={0.01}
-          value={config.k1}
-          onChange={(e) => {
-            const value = Number(e.currentTarget.value)
+        />
+
+        <h3>Graviation constant</h3>
+
+        <Input
+          value={config.k2}
+          onChange={(newValue: number) => {
             setConfig((config) => {
               return {
                 ...config,
-                k1: value,
+                k2: newValue,
               }
             })
           }}
-        />
-        <div>{config.k1}</div>
-
-        <h3>Graviation constant</h3>
-        <input
-          type="range"
           min={-10}
           max={10}
           step={0.1}
-          value={config.k2}
-          onChange={(e) => {
-            const value = Number(e.currentTarget.value)
-            setConfig((config) => {
-              return {
-                ...config,
-                k2: value,
-              }
-            })
-          }}
         />
-        <div>{config.k2}</div>
+
         <pre>
           <code>
             {` 
@@ -331,80 +326,72 @@ force = k1 / rPlus ** 3 + k2 / rPlus ** 2`}
         </pre>
 
         <h3>Max force</h3>
-        <input
-          type="range"
+
+        <Input
+          value={config.maxAbs}
+          onChange={(newValue: number) => {
+            setConfig((config) => {
+              return {
+                ...config,
+                maxAbs: newValue,
+              }
+            })
+          }}
           min={0}
           max={1}
           step={0.01}
-          value={config.maxAbs}
-          onChange={(e) => {
-            const value = Number(e.currentTarget.value)
+        />
+
+        <h3>Air Coefficient</h3>
+
+        <Input
+          value={config.airResistanceCoeff}
+          onChange={(newValue: number) => {
             setConfig((config) => {
               return {
                 ...config,
-                maxAbs: value,
+                airResistanceCoeff: newValue,
               }
             })
           }}
-        />
-        <div>{config.maxAbs}</div>
-
-        <h3>Air Coefficient</h3>
-        <input
-          type="range"
           min={-10}
           max={10}
           step={0.01}
-          value={config.airResistanceCoeff}
-          onChange={(e) => {
-            const value = Number(e.currentTarget.value)
+        />
+
+        <h3>Spring Coefficient</h3>
+
+        <Input
+          value={config.springCoeff}
+          onChange={(newValue: number) => {
             setConfig((config) => {
               return {
                 ...config,
-                airResistanceCoeff: value,
+                springCoeff: newValue,
               }
             })
           }}
-        />
-        <div>{config.airResistanceCoeff}</div>
-
-        <h3>Spring Coefficient</h3>
-        <input
-          type="range"
           min={0}
           max={0.1}
           step={0.001}
-          value={config.springCoeff}
-          onChange={(e) => {
-            const value = Number(e.currentTarget.value)
+        />
+
+        <h3>Spring Damping Coefficient</h3>
+
+        <Input
+          value={config.springDampingCoeff}
+          onChange={(newValue: number) => {
             setConfig((config) => {
               return {
                 ...config,
-                springCoeff: value,
+                springDampingCoeff: newValue,
               }
             })
           }}
-        />
-        <div>{config.springCoeff}</div>
-
-        <h3>Spring Damping Coefficient</h3>
-        <input
-          type="range"
           min={0}
           max={0.1}
           step={0.0001}
-          value={config.springDampingCoeff}
-          onChange={(e) => {
-            const value = Number(e.currentTarget.value)
-            setConfig((config) => {
-              return {
-                ...config,
-                springDampingCoeff: value,
-              }
-            })
-          }}
         />
-        <div>{config.springDampingCoeff}</div>
 
         <button
           onClick={() => {
@@ -421,42 +408,38 @@ force = k1 / rPlus ** 3 + k2 / rPlus ** 2`}
         </button>
 
         <h3>Particle Radius</h3>
-        <input
-          type="range"
+
+        <Input
+          value={config.particleRadius}
+          onChange={(newValue: number) => {
+            setConfig((config) => {
+              return {
+                ...config,
+                particleRadius: newValue,
+              }
+            })
+          }}
           min={1}
           max={15}
           step={1}
-          value={config.particleRadius}
-          onChange={(e) => {
-            const value = Number(e.currentTarget.value)
+        />
+
+        <h3>Particle Mass</h3>
+
+        <Input
+          value={config.mass}
+          onChange={(newValue: number) => {
             setConfig((config) => {
               return {
                 ...config,
-                particleRadius: value,
+                mass: newValue,
               }
             })
           }}
-        />
-        <div>{config.particleRadius}</div>
-
-        <h3>Particle Mass</h3>
-        <input
-          type="range"
           min={0.1}
           max={10}
           step={0.01}
-          value={config.mass}
-          onChange={(e) => {
-            const value = Number(e.currentTarget.value)
-            setConfig((config) => {
-              return {
-                ...config,
-                mass: value,
-              }
-            })
-          }}
         />
-        <div>{config.mass}</div>
 
         {showChart && (
           <div
@@ -555,6 +538,39 @@ force = k1 / rPlus ** 3 + k2 / rPlus ** 2`}
         className="right"
         ref={rightEl}
       ></div>
+    </div>
+  )
+}
+
+const Input = (props: {
+  value: number
+  onChange: (newValue: number) => void
+  min: number
+  max: number
+  step: number
+}) => {
+  return (
+    <div>
+      <input
+        type="range"
+        min={props.min}
+        max={props.max}
+        step={props.step}
+        value={props.value}
+        onChange={(e) => {
+          const newValue = Number(e.currentTarget.value)
+          props.onChange(newValue)
+        }}
+      />
+      <input
+        type="number"
+        value={props.value}
+        step={props.step}
+        onChange={(e) => {
+          const newValue = Number(e.currentTarget.value)
+          props.onChange(newValue)
+        }}
+      />
     </div>
   )
 }
