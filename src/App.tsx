@@ -248,7 +248,7 @@ function App() {
             setConfig((config) => {
               return {
                 ...config,
-                rOffset: newValue,
+                particleCount: newValue,
               }
             })
           }}

@@ -61,6 +61,10 @@ export type ParticleConfig = {
   mass: number
 }
 
+export type Scenario = {
+  particles: ParticleConfig[]
+}
+
 function dampingForce(
   thisParticle: Particle,
   otherParticle: Particle,
