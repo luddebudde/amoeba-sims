@@ -1,11 +1,9 @@
 import './App.css'
 import {
-  createElement,
   Dispatch,
   FunctionComponent,
   SetStateAction,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from 'react'
@@ -30,12 +28,12 @@ import { useLocalStorage } from '@uidotdev/usehooks'
 import { v4 } from 'uuid'
 import {
   array,
-  failure,
   object,
   parseNumber,
   parseString,
   withDefault,
 } from 'pure-parse'
+import { HexColorPicker } from 'react-colorful'
 
 export const Chart: FunctionComponent<{ config: ParticleConfig }> = (props) => {
   const { config } = props
@@ -169,6 +167,7 @@ const defaultParticleCount = 100
 
 const parseParticleConfig = object<ParticleConfig>({
   uid: parseString,
+  color: parseString,
   particleCount: withDefault(parseNumber, defaultParticleCount),
   airResistanceCoeff: parseNumber,
   k1: parseNumber,
@@ -196,6 +195,22 @@ const parseConfigStorage = object<ConfigStorage>({
   configs: array(parseNamedConfig),
 })
 
+const createDefaultParticle = (): ParticleConfig => ({
+  uid: v4(),
+  color: '#ffffff',
+  particleCount: defaultParticleCount,
+  airResistanceCoeff: 0,
+  k1: 0,
+  k2: 0,
+  maxAbs: 1,
+  mass: 1,
+  particleRadius: 5,
+  rOffset: 0,
+  rScale: 1,
+  springCoeff: 0,
+  springDampingCoeff: 0,
+})
+
 function App() {
   const [showChart, setShowChart] = useState(false)
   const game = useRef<Game | undefined>(undefined)
@@ -207,22 +222,7 @@ function App() {
     })
 
   const [scenario, setScenario] = useState<Scenario>({
-    particles: [
-      {
-        uid: v4(),
-        particleCount: defaultParticleCount,
-        airResistanceCoeff: 0,
-        k1: 0,
-        k2: 0,
-        maxAbs: 1,
-        mass: 1,
-        particleRadius: 5,
-        rOffset: 0,
-        rScale: 1,
-        springCoeff: 0,
-        springDampingCoeff: 0,
-      },
-    ],
+    particles: [createDefaultParticle()],
   })
 
   const [currentParticleUid, setCurrentParticleUid] = useState(
@@ -252,8 +252,6 @@ function App() {
       }
     }
 
-  const particles = [config]
-
   const rightEl = useRef<HTMLDivElement>(null)
 
   useAsyncEffect(
@@ -280,6 +278,15 @@ function App() {
     configStorageResult.tag === 'success'
       ? configStorageResult.value
       : { configs: [] }
+
+  const handelAddNewParticle = () => {
+    setScenario((scenario) => {
+      return {
+        ...scenario,
+        particles: [...scenario.particles, createDefaultParticle()],
+      }
+    })
+  }
 
   return (
     <div className="app">
@@ -379,10 +386,33 @@ function App() {
             ))}
           </div>
         </div>
-        <div>
-          {particles.map((config) => (
-            <button>{config.uid}</button>
+        <div style={{ display: 'flex', overflowX: 'auto' }}>
+          {scenario.particles.map((particleConfig) => (
+            <button
+              style={{
+                backgroundColor:
+                  currentParticleUid === particleConfig.uid
+                    ? 'lightgrey'
+                    : undefined,
+              }}
+              onClick={() => {
+                setCurrentParticleUid(particleConfig.uid)
+              }}
+            >
+              <div
+                style={{
+                  width: 25,
+                  height: 25,
+                  background: particleConfig.color,
+                  borderRadius: 5,
+                  borderStyle: 'solid',
+                  borderColor: 'black',
+                  borderWidth: 2,
+                }}
+              ></div>
+            </button>
           ))}
+          <button onClick={handelAddNewParticle}>+Particle</button>
         </div>
         <ParticleConfigView
           config={config}
@@ -647,6 +677,19 @@ force = k1 / rPlus ** 3 + k2 / rPlus ** 2`}
         min={0.1}
         max={10}
         step={0.01}
+      />
+
+      <HexColorPicker
+        style={{ padding: 20 }}
+        color={config.color}
+        onChange={(newValue) => {
+          setConfig((config) => {
+            return {
+              ...config,
+              color: newValue,
+            }
+          })
+        }}
       />
     </div>
   )
