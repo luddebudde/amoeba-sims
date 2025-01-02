@@ -48,6 +48,7 @@ const createParticleGraphic = (config: ParticleConfig): Graphics => {
 }
 
 export type ParticleConfig = {
+  uid: string
   particleCount: number
   rOffset: number
   rScale: number

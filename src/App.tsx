@@ -1,11 +1,21 @@
 import './App.css'
-import { FunctionComponent, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  createElement,
+  Dispatch,
+  FunctionComponent,
+  SetStateAction,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import {
   ParticleConfig,
   createGame,
   forceFromParticle,
   Game,
   Particle,
+  Scenario,
 } from './game.ts'
 import {
   LineChart,
@@ -148,7 +158,7 @@ const useAsyncEffect = <T,>(
 type NamedConfig = {
   name: string
   id: string
-  config: ParticleConfig
+  scenario: Scenario
 }
 
 type ConfigStorage = {
@@ -158,6 +168,7 @@ type ConfigStorage = {
 const defaultParticleCount = 100
 
 const parseParticleConfig = object<ParticleConfig>({
+  uid: parseString,
   particleCount: withDefault(parseNumber, defaultParticleCount),
   airResistanceCoeff: parseNumber,
   k1: parseNumber,
@@ -171,10 +182,14 @@ const parseParticleConfig = object<ParticleConfig>({
   springDampingCoeff: parseNumber,
 })
 
+const parseScenario = object<Scenario>({
+  particles: array(parseParticleConfig),
+})
+
 const parseNamedConfig = object<NamedConfig>({
   name: parseString,
   id: parseString,
-  config: parseParticleConfig,
+  scenario: parseScenario,
 })
 
 const parseConfigStorage = object<ConfigStorage>({
@@ -191,19 +206,53 @@ function App() {
       configs: [],
     })
 
-  const [config, setConfig] = useState<ParticleConfig>({
-    particleCount: defaultParticleCount,
-    airResistanceCoeff: 0,
-    k1: 0,
-    k2: 0,
-    maxAbs: 1,
-    mass: 1,
-    particleRadius: 5,
-    rOffset: 0,
-    rScale: 1,
-    springCoeff: 0,
-    springDampingCoeff: 0,
+  const [scenario, setScenario] = useState<Scenario>({
+    particles: [
+      {
+        uid: v4(),
+        particleCount: defaultParticleCount,
+        airResistanceCoeff: 0,
+        k1: 0,
+        k2: 0,
+        maxAbs: 1,
+        mass: 1,
+        particleRadius: 5,
+        rOffset: 0,
+        rScale: 1,
+        springCoeff: 0,
+        springDampingCoeff: 0,
+      },
+    ],
   })
+
+  const [currentParticleUid, setCurrentParticleUid] = useState(
+    scenario.particles[0].uid,
+  )
+
+  // TODO Remove non-null assertion
+  const config = scenario.particles.find((it) => it.uid === currentParticleUid)!
+
+  const setConfig =
+    (uid: string): Dispatch<SetStateAction<ParticleConfig>> =>
+    (getNewState) => {
+      if (typeof getNewState === 'function') {
+        setScenario((prevScenario) => {
+          const newParticleConfig = getNewState(
+            prevScenario.particles.find((it) => it.uid === uid)!,
+          )
+          const unaltered = prevScenario.particles.filter(
+            (it) => it.uid !== uid,
+          )
+          return {
+            particles: [...unaltered, newParticleConfig],
+          }
+        })
+      } else {
+        throw new Error('Do not even try')
+      }
+    }
+
+  const particles = [config]
 
   const rightEl = useRef<HTMLDivElement>(null)
 
@@ -227,11 +276,10 @@ function App() {
 
   const configStorageResult = parseConfigStorage(configStorageUnkown)
 
-  if (configStorageResult.tag === 'failure') {
-    return 'Could not parse config storage lolololol'
-  }
-
-  const configStorage = configStorageResult.value
+  const configStorage: ConfigStorage =
+    configStorageResult.tag === 'success'
+      ? configStorageResult.value
+      : { configs: [] }
 
   return (
     <div className="app">
@@ -239,214 +287,6 @@ function App() {
         <button onClick={() => setShowChart(!showChart)}>
           Toggle chart : {showChart ? 'True' : 'False'}
         </button>
-
-        <h3>Particle Count</h3>
-
-        <Input
-          value={config.particleCount}
-          onChange={(newValue: number) => {
-            setConfig((config) => {
-              return {
-                ...config,
-                particleCount: newValue,
-              }
-            })
-          }}
-          min={0}
-          max={1000}
-          step={1}
-        />
-
-        <h3>r offset</h3>
-
-        <Input
-          value={config.rOffset}
-          onChange={(newValue: number) => {
-            setConfig((config) => {
-              return {
-                ...config,
-                rOffset: newValue,
-              }
-            })
-          }}
-          min={-5}
-          max={5}
-          step={0.001}
-        />
-
-        <h3>r scale</h3>
-        <Input
-          value={config.rScale}
-          onChange={(newValue: number) => {
-            setConfig((config) => {
-              return {
-                ...config,
-                rScale: newValue,
-              }
-            })
-          }}
-          min={0}
-          max={10}
-          step={0.001}
-        />
-
-        <h3>Near distance repulsion</h3>
-
-        <Input
-          value={config.k1}
-          onChange={(newValue: number) => {
-            setConfig((config) => {
-              return {
-                ...config,
-                k1: newValue,
-              }
-            })
-          }}
-          min={-3}
-          max={3}
-          step={0.01}
-        />
-
-        <h3>Graviation constant</h3>
-
-        <Input
-          value={config.k2}
-          onChange={(newValue: number) => {
-            setConfig((config) => {
-              return {
-                ...config,
-                k2: newValue,
-              }
-            })
-          }}
-          min={-10}
-          max={10}
-          step={0.1}
-        />
-
-        <pre>
-          <code>
-            {` 
-rPlus = rScale * rAbs + rOffset 
-force = k1 / rPlus ** 3 + k2 / rPlus ** 2`}
-          </code>
-        </pre>
-
-        <h3>Max force</h3>
-
-        <Input
-          value={config.maxAbs}
-          onChange={(newValue: number) => {
-            setConfig((config) => {
-              return {
-                ...config,
-                maxAbs: newValue,
-              }
-            })
-          }}
-          min={0}
-          max={1}
-          step={0.01}
-        />
-
-        <h3>Air Coefficient</h3>
-
-        <Input
-          value={config.airResistanceCoeff}
-          onChange={(newValue: number) => {
-            setConfig((config) => {
-              return {
-                ...config,
-                airResistanceCoeff: newValue,
-              }
-            })
-          }}
-          min={-10}
-          max={10}
-          step={0.01}
-        />
-
-        <h3>Spring Coefficient</h3>
-
-        <Input
-          value={config.springCoeff}
-          onChange={(newValue: number) => {
-            setConfig((config) => {
-              return {
-                ...config,
-                springCoeff: newValue,
-              }
-            })
-          }}
-          min={0}
-          max={0.1}
-          step={0.001}
-        />
-
-        <h3>Spring Damping Coefficient</h3>
-
-        <Input
-          value={config.springDampingCoeff}
-          onChange={(newValue: number) => {
-            setConfig((config) => {
-              return {
-                ...config,
-                springDampingCoeff: newValue,
-              }
-            })
-          }}
-          min={0}
-          max={0.1}
-          step={0.0001}
-        />
-
-        <button
-          onClick={() => {
-            setConfig((config) => {
-              return {
-                ...config,
-                springDampingCoeff:
-                  2 * Math.sqrt(config.springCoeff * config.mass),
-              }
-            })
-          }}
-        >
-          Critical: {2 * Math.sqrt(config.springCoeff * config.mass)}
-        </button>
-
-        <h3>Particle Radius</h3>
-
-        <Input
-          value={config.particleRadius}
-          onChange={(newValue: number) => {
-            setConfig((config) => {
-              return {
-                ...config,
-                particleRadius: newValue,
-              }
-            })
-          }}
-          min={1}
-          max={15}
-          step={1}
-        />
-
-        <h3>Particle Mass</h3>
-
-        <Input
-          value={config.mass}
-          onChange={(newValue: number) => {
-            setConfig((config) => {
-              return {
-                ...config,
-                mass: newValue,
-              }
-            })
-          }}
-          min={0.1}
-          max={10}
-          step={0.01}
-        />
 
         {showChart && (
           <div
@@ -481,16 +321,16 @@ force = k1 / rPlus ** 3 + k2 / rPlus ** 2`}
                   const result = parseConfigStorage(configStorage)
 
                   if (result.tag === 'failure') {
-                    alert('FAILED TO PARSEEEEEEEEEEEEEE')
+                    alert('FAILED TO PARSEEEEEEEEEEaEEEE')
                     return
                   }
 
                   return {
                     configs: [
-                      { name: newConfigName, id: v4(), config: config },
+                      { name: newConfigName, id: v4(), scenario: scenario },
                       ...result.value.configs,
                     ],
-                  }
+                  } satisfies ConfigStorage
                 })
               }
             >
@@ -512,8 +352,8 @@ force = k1 / rPlus ** 3 + k2 / rPlus ** 2`}
           <div>
             {configStorage?.configs.map((namedConfig) => (
               <div>
-                {namedConfig.name}{' '}
-                <button onClick={(e) => setConfig(namedConfig.config)}>
+                {namedConfig.name}
+                <button onClick={(e) => setScenario(namedConfig.scenario)}>
                   Load
                 </button>
                 <button
@@ -539,6 +379,15 @@ force = k1 / rPlus ** 3 + k2 / rPlus ** 2`}
             ))}
           </div>
         </div>
+        <div>
+          {particles.map((config) => (
+            <button>{config.uid}</button>
+          ))}
+        </div>
+        <ParticleConfigView
+          config={config}
+          setConfig={setConfig(currentParticleUid)}
+        />
       </div>
 
       <div
@@ -577,6 +426,227 @@ const Input = (props: {
           const newValue = Number(e.currentTarget.value)
           props.onChange(newValue)
         }}
+      />
+    </div>
+  )
+}
+
+type ParticleConfigViewProps = {
+  config: ParticleConfig
+  setConfig: Dispatch<SetStateAction<ParticleConfig>>
+}
+
+const ParticleConfigView = (props: ParticleConfigViewProps) => {
+  const { config, setConfig } = props
+
+  return (
+    <div>
+      <h3>Particle Count</h3>
+
+      <Input
+        value={config.particleCount}
+        onChange={(newValue: number) => {
+          setConfig((config) => {
+            return {
+              ...config,
+              particleCount: newValue,
+            }
+          })
+        }}
+        min={0}
+        max={1000}
+        step={1}
+      />
+
+      <h3>r offset</h3>
+
+      <Input
+        value={config.rOffset}
+        onChange={(newValue: number) => {
+          setConfig((config) => {
+            return {
+              ...config,
+              rOffset: newValue,
+            }
+          })
+        }}
+        min={-5}
+        max={5}
+        step={0.001}
+      />
+
+      <h3>r scale</h3>
+      <Input
+        value={config.rScale}
+        onChange={(newValue: number) => {
+          setConfig((config) => {
+            return {
+              ...config,
+              rScale: newValue,
+            }
+          })
+        }}
+        min={0}
+        max={10}
+        step={0.001}
+      />
+
+      <h3>Near distance repulsion</h3>
+
+      <Input
+        value={config.k1}
+        onChange={(newValue: number) => {
+          setConfig((config) => {
+            return {
+              ...config,
+              k1: newValue,
+            }
+          })
+        }}
+        min={-3}
+        max={3}
+        step={0.01}
+      />
+
+      <h3>Graviation constant</h3>
+
+      <Input
+        value={config.k2}
+        onChange={(newValue: number) => {
+          setConfig((config) => {
+            return {
+              ...config,
+              k2: newValue,
+            }
+          })
+        }}
+        min={-10}
+        max={10}
+        step={0.1}
+      />
+
+      <pre>
+        <code>
+          {` 
+rPlus = rScale * rAbs + rOffset 
+force = k1 / rPlus ** 3 + k2 / rPlus ** 2`}
+        </code>
+      </pre>
+
+      <h3>Max force</h3>
+
+      <Input
+        value={config.maxAbs}
+        onChange={(newValue: number) => {
+          setConfig((config) => {
+            return {
+              ...config,
+              maxAbs: newValue,
+            }
+          })
+        }}
+        min={0}
+        max={1}
+        step={0.01}
+      />
+
+      <h3>Air Coefficient</h3>
+
+      <Input
+        value={config.airResistanceCoeff}
+        onChange={(newValue: number) => {
+          setConfig((config) => {
+            return {
+              ...config,
+              airResistanceCoeff: newValue,
+            }
+          })
+        }}
+        min={-10}
+        max={10}
+        step={0.01}
+      />
+
+      <h3>Spring Coefficient</h3>
+
+      <Input
+        value={config.springCoeff}
+        onChange={(newValue: number) => {
+          setConfig((config) => {
+            return {
+              ...config,
+              springCoeff: newValue,
+            }
+          })
+        }}
+        min={0}
+        max={0.1}
+        step={0.001}
+      />
+
+      <h3>Spring Damping Coefficient</h3>
+
+      <Input
+        value={config.springDampingCoeff}
+        onChange={(newValue: number) => {
+          setConfig((config) => {
+            return {
+              ...config,
+              springDampingCoeff: newValue,
+            }
+          })
+        }}
+        min={0}
+        max={0.1}
+        step={0.0001}
+      />
+
+      <button
+        onClick={() => {
+          setConfig((config) => {
+            return {
+              ...config,
+              springDampingCoeff:
+                2 * Math.sqrt(config.springCoeff * config.mass),
+            }
+          })
+        }}
+      >
+        Critical: {2 * Math.sqrt(config.springCoeff * config.mass)}
+      </button>
+
+      <h3>Particle Radius</h3>
+
+      <Input
+        value={config.particleRadius}
+        onChange={(newValue: number) => {
+          setConfig((config) => {
+            return {
+              ...config,
+              particleRadius: newValue,
+            }
+          })
+        }}
+        min={1}
+        max={15}
+        step={1}
+      />
+
+      <h3>Particle Mass</h3>
+
+      <Input
+        value={config.mass}
+        onChange={(newValue: number) => {
+          setConfig((config) => {
+            return {
+              ...config,
+              mass: newValue,
+            }
+          })
+        }}
+        min={0.1}
+        max={10}
+        step={0.01}
       />
     </div>
   )
