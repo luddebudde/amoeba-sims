@@ -1,7 +1,7 @@
 import './App.css'
 import { FunctionComponent, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Config,
+  ParticleConfig,
   createGame,
   forceFromParticle,
   Game,
@@ -27,7 +27,7 @@ import {
   withDefault,
 } from 'pure-parse'
 
-export const Chart: FunctionComponent<{ config: Config }> = (props) => {
+export const Chart: FunctionComponent<{ config: ParticleConfig }> = (props) => {
   const { config } = props
   const otherParticle: Particle = {
     pos: { x: 0, y: 0 },
@@ -148,7 +148,7 @@ const useAsyncEffect = <T,>(
 type NamedConfig = {
   name: string
   id: string
-  config: Config
+  config: ParticleConfig
 }
 
 type ConfigStorage = {
@@ -157,7 +157,7 @@ type ConfigStorage = {
 
 const defaultParticleCount = 100
 
-const parseConfig = object<Config>({
+const parseParticleConfig = object<ParticleConfig>({
   particleCount: withDefault(parseNumber, defaultParticleCount),
   airResistanceCoeff: parseNumber,
   k1: parseNumber,
@@ -174,7 +174,7 @@ const parseConfig = object<Config>({
 const parseNamedConfig = object<NamedConfig>({
   name: parseString,
   id: parseString,
-  config: parseConfig,
+  config: parseParticleConfig,
 })
 
 const parseConfigStorage = object<ConfigStorage>({
@@ -191,7 +191,7 @@ function App() {
       configs: [],
     })
 
-  const [config, setConfig] = useState<Config>({
+  const [config, setConfig] = useState<ParticleConfig>({
     particleCount: defaultParticleCount,
     airResistanceCoeff: 0,
     k1: 0,

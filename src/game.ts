@@ -32,7 +32,7 @@ export type Particle = {
   vel: Vec
 }
 
-const createParticleGraphic = (config: Config): Graphics => {
+const createParticleGraphic = (config: ParticleConfig): Graphics => {
   // Create a Graphics object
   const redDot = new Graphics()
 
@@ -47,7 +47,7 @@ const createParticleGraphic = (config: Config): Graphics => {
   return redDot
 }
 
-export type Config = {
+export type ParticleConfig = {
   particleCount: number
   rOffset: number
   rScale: number
@@ -64,7 +64,7 @@ export type Config = {
 function dampingForce(
   thisParticle: Particle,
   otherParticle: Particle,
-  config: Config,
+  config: ParticleConfig,
 ) {
   const r = sub(thisParticle.pos, otherParticle.pos)
   const rAbs = length(r)
@@ -82,7 +82,7 @@ function dampingForce(
 export const forceFromParticle = (
   thisParticle: Particle,
   otherParticle: Particle,
-  config: Config,
+  config: ParticleConfig,
 ): Vec => {
   const r = sub(thisParticle.pos, otherParticle.pos)
   const rAbs = length(r)
@@ -110,7 +110,7 @@ export const forceFromParticle = (
 function calculateForce(
   particle: Particle,
   mapRadius: number,
-  config: Config,
+  config: ParticleConfig,
   particles: Particle[],
 ) {
   const fieldR = sub(origin, particle.pos)
@@ -144,7 +144,7 @@ function calculateForce(
 export const createGame = async (
   root: HTMLElement,
   particleCount: number,
-  initialConfig: Config,
+  initialConfig: ParticleConfig,
 ) => {
   let config = initialConfig
 
@@ -384,7 +384,7 @@ export const createGame = async (
       root.removeChild(canvas)
       app.destroy()
     },
-    setConfig: (newConfig: Config) => {
+    setConfig: (newConfig: ParticleConfig) => {
       config = newConfig
       particlesT0.forEach((_, index) => {
         particleGraphics[index].scale = {
