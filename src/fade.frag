@@ -21,8 +21,8 @@ uniform vec2 particle;
 uniform vec2[512] particles;
 uniform int particlesCount;
 
-const float dispersion = 0.01;
-const float colorStrength = 10.0;
+const float dispersion = 0.1;
+const float colorStrength = 1.0;
 
 void main() {
     float distance = length(vPosition - particle);
