@@ -26,7 +26,6 @@ import {
   parseString,
   withDefault,
 } from 'pure-parse'
-import parse from 'parse-svg-path'
 
 export const Chart: FunctionComponent<{ config: Config }> = (props) => {
   const { config } = props
@@ -156,7 +155,10 @@ type ConfigStorage = {
   configs: NamedConfig[]
 }
 
+const defaultParticleCount = 100
+
 const parseConfig = object<Config>({
+  particleCount: withDefault(parseNumber, defaultParticleCount),
   airResistanceCoeff: parseNumber,
   k1: parseNumber,
   k2: parseNumber,
@@ -180,7 +182,6 @@ const parseConfigStorage = object<ConfigStorage>({
 })
 
 function App() {
-  const [particleCount, setParticleCount] = useState(100)
   const [showChart, setShowChart] = useState(false)
   const game = useRef<Game | undefined>(undefined)
   const [newConfigName, setNewConfigName] = useState('')
@@ -191,6 +192,7 @@ function App() {
     })
 
   const [config, setConfig] = useState<Config>({
+    particleCount: defaultParticleCount,
     airResistanceCoeff: 0,
     k1: 0,
     k2: 0,
@@ -208,7 +210,7 @@ function App() {
   useAsyncEffect(
     () =>
       rightEl.current
-        ? createGame(rightEl.current, particleCount, config)
+        ? createGame(rightEl.current, config.particleCount, config)
         : Promise.resolve(undefined),
     (createdGame) => {
       game.current = createdGame
@@ -216,7 +218,7 @@ function App() {
     (createdGame) => {
       createdGame?.destroy()
     },
-    [particleCount],
+    [config.particleCount],
   )
 
   useEffect(() => {
@@ -241,9 +243,14 @@ function App() {
         <h3>Particle Count</h3>
 
         <Input
-          value={particleCount}
+          value={config.particleCount}
           onChange={(newValue: number) => {
-            setParticleCount(newValue)
+            setConfig((config) => {
+              return {
+                ...config,
+                rOffset: newValue,
+              }
+            })
           }}
           min={0}
           max={1000}
