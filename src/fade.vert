@@ -3,15 +3,18 @@
 precision mediump float;
 
 in vec2 aPosition;
+in vec2 aUv;
 
-uniform mat3 uProjectionMatrix;
-uniform mat3 uWorldTransformMatrix;
+out vec2 vUv;
+out vec2 vPosition;
 
+uniform mat3 projectionMatrix;
+uniform mat3 translationMatrix;
 uniform mat3 uTransformMatrix;
 
 
 void main() {
-
-    mat3 mvp = uProjectionMatrix * uWorldTransformMatrix * uTransformMatrix;
-    gl_Position = vec4((mvp * vec3(aPosition, 1.0)).xy, 0.0, 1.0);
+    vUv = aUv;
+    vPosition = aPosition;
+    gl_Position = vec4((projectionMatrix * translationMatrix * vec3(aPosition, 1.0)).xy, 0.0, 1.0);
 }

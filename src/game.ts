@@ -1,8 +1,8 @@
 import {
   Application,
   Container,
-  Geometry,
   Graphics,
+  Sprite,
   Text,
   TextStyle,
 } from 'pixi.js'
@@ -23,6 +23,7 @@ import { randomInCircle } from './math.ts'
 import * as PIXI from 'pixi.js'
 import vertex from './fade.vert?raw'
 import fragment from './fade.frag?raw'
+import timeSmoothFragment from './shaders/timeSmooth.frag?raw'
 
 export type Game = Awaited<ReturnType<typeof createGame>>
 
@@ -36,10 +37,13 @@ const createParticleGraphic = (config: Config): Graphics => {
   const redDot = new Graphics()
 
   // Draw a red circle (dot)
-  redDot.fill(0xff0000) // Red color
-  redDot.circle(0, 0, 1) // x=0, y=0, radius=10
-  redDot.scale = config.particleRadius
-  redDot.fill()
+  redDot.beginFill(0xff0000) // Red color
+  redDot.drawCircle(0, 0, 1) // x=0, y=0, radius=10
+  redDot.scale = {
+    x: config.particleRadius,
+    y: config.particleRadius,
+  }
+  redDot.endFill()
   return redDot
 }
 
@@ -143,19 +147,27 @@ export const createGame = async (
 ) => {
   let config = initialConfig
 
-  // Create a new application
-  const app = new Application()
-
-  // Initialize the application
-  await app.init({ background: '#292626', resizeTo: root })
-  // #1099bb
-  const world = new Container()
-  world.position.set(app.screen.width / 2, app.screen.height / 2)
+  const app = new Application({
+    background: '#292626',
+    resizeTo: root,
+  })
+  const canvas = app.view as HTMLCanvasElement
 
   // Append the application canvas to the document body
-  root.appendChild(app.canvas)
+  root.appendChild(canvas)
 
-  const mapRadius = Math.min(app.screen.width, app.screen.height) / 2
+  const dimensions: Vec = {
+    x: canvas.width,
+    y: canvas.height,
+  }
+
+  const world = new Container()
+  world.position.set(dimensions.x / 2, dimensions.y / 2)
+  // Create a new container for rendering on a render texture with identical coordinate system
+  const rendererWorld = new Container()
+  rendererWorld.position.set(dimensions.x / 2, dimensions.y / 2)
+
+  const mapRadius = Math.min(dimensions.x, dimensions.y) / 2
 
   let particlesT0: Particle[] = Array.from({ length: particleCount }).map(
     () => ({
@@ -166,39 +178,119 @@ export const createGame = async (
   let particlesT1 = structuredClone(particlesT0)
   let particlesTHalf = structuredClone(particlesT0)
 
+  const renderTexture1 = PIXI.RenderTexture.create({
+    width: dimensions.x,
+    height: dimensions.y,
+  })
+  const renderTexture2 = PIXI.RenderTexture.create({
+    width: dimensions.x,
+    height: dimensions.y,
+  })
+  const gl = app.renderer.gl
+
+  // WebGL texture setup with FLOAT texture format
+  const texture = gl.createTexture()
+  gl.bindTexture(gl.TEXTURE_2D, texture)
+
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.R32F, // Single 32-bit floating point channel
+    dimensions.x,
+    dimensions.y,
+    0,
+    gl.RED, // Use a single red channel for the float data
+    gl.FLOAT,
+    null,
+  )
+
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+
+  // console.log(texture)
+  // console.log(renderTexture1.baseTexture)
+  // renderTexture1.baseTexture = texture
+  // renderTexture2.baseTexture = texture
+
+  let currentTexture = renderTexture1
+  const getCurrentRenderTexture = () => currentTexture
+  const getNextRenderTexture = () =>
+    currentTexture === renderTexture1 ? renderTexture2 : renderTexture1
+
   const particleGraphics: Graphics[] = particlesT0.map(() =>
     createParticleGraphic(config),
   )
 
+  const geometry = new PIXI.Geometry()
+    .addAttribute(
+      'aPosition',
+      [
+        // x y
+        [-1, -1],
+        // x y
+        [1, -1],
+        // x y
+        [-1, 1],
+        // x y
+        [1, 1],
+      ]
+        .map(([x, y]) => [(x * dimensions.x) / 2, (y * dimensions.y) / 2])
+        .flat(),
+      2,
+    )
+    .addAttribute(
+      'aUv',
+      [
+        // x y
+        0, 0,
+        // x y
+        1, 0,
+        // x y
+        0, 1,
+        // x y
+        1, 1,
+      ],
+      2,
+    )
+    .addIndex([0, 1, 2, 1, 2, 3])
+  const shader = PIXI.Shader.from(vertex, fragment, {
+    particle: [0, 0],
+    particlesCount: 0,
+    particles: new Array(maxParticles * 2).fill(0),
+  })
+  const particlesMesh = new PIXI.Mesh(geometry, shader)
+  const timeFilter = new PIXI.Filter(undefined, timeSmoothFragment)
+  timeFilter.uniforms.previousTexture = getNextRenderTexture()
+  particlesMesh.filters = [timeFilter]
+
+  const sprite = new Sprite(getCurrentRenderTexture())
+  sprite.position.set(0, 0)
+  sprite.anchor.set(0.5)
+  rendererWorld.addChild(particlesMesh)
+
+  world.addChild(sprite)
+  shader.uniforms.particle = [dimensions.x / 2, dimensions.y / 2]
+  shader.uniforms.particlesCount = 0
+
   const boundary = new Graphics()
-  boundary.stroke(0x333333) // Red color
-  boundary.circle(0, 0, mapRadius)
-  boundary.stroke()
+  boundary.lineStyle(2, 0x333333) // Red color
+  boundary.drawCircle(0, 0, mapRadius)
+
   world.addChild(boundary)
 
   particleGraphics.forEach((particle) => {
-    world.addChild(particle)
+    // world.addChild(particle)
   })
 
   let kineticEnergy = 0
 
-  const text = new Text({
-    text: 'Hello',
-    style: new TextStyle({
-      fill: 'white',
-    }),
-  })
-
+  const text = new Text('Kinetic Energy: 0 J', new TextStyle({ fill: 'white' }))
   app.stage.addChild(text)
+
   app.stage.addChild(world)
 
-  // mesh.position.set(-100, -100)
-  // app.stage.addChild(mesh)
-
   app.ticker.add((time) => {
-    const dt = time.deltaTime
-
-    console.log(dt)
+    const dt = time
 
     kineticEnergy = particlesT0.reduce((acc, particle) => {
       return acc + 0.5 * config.mass * lengthSq(particle.vel)
@@ -260,6 +352,27 @@ export const createGame = async (
     particlesT1.forEach((particle, index) => {
       particleGraphics[index].position.copyFrom(particle.pos)
     })
+
+    // buffer.setDataWithSize(
+    //   new Float32Array(particlesT1.flatMap((p) => [p.pos.x, p.pos.y])),
+    //   particlesT1.length * 2,
+    //   true,
+    // )
+
+    shader.uniforms.particlesCount = Math.min(particlesT1.length, maxParticles)
+    shader.uniforms.particles = new Float32Array(
+      particlesT1.flatMap((p) => [p.pos.x, p.pos.y]),
+    )
+
+    shader.uniforms.particle = [particlesT0[0].pos.x, particlesT0[0].pos.y]
+
+    timeFilter.uniforms.uCurrentRenderTexture = getCurrentRenderTexture()
+    app.renderer.render(rendererWorld, {
+      renderTexture: getNextRenderTexture(),
+    })
+    sprite.texture = getNextRenderTexture()
+    currentTexture = getNextRenderTexture()
+
     const tmp = particlesT0
     particlesT0 = particlesT1
     particlesT1 = tmp
@@ -267,57 +380,29 @@ export const createGame = async (
 
   return {
     destroy: () => {
-      root.removeChild(app.canvas)
+      root.removeChild(canvas)
       app.destroy()
     },
     setConfig: (newConfig: Config) => {
       config = newConfig
       particlesT0.forEach((_, index) => {
-        particleGraphics[index].scale = config.particleRadius
+        particleGraphics[index].scale = {
+          x: config.particleRadius,
+          y: config.particleRadius,
+        }
       })
     },
   }
 }
 
-const geometry = new PIXI.Geometry({
-  attributes: {
-    aPosition: [
-      // x y
-      0, 0,
-      // x y
-      1, 0,
-      // x y
-      0, 1,
-      // x y
-      1, 1,
-    ].map((it) => it * 1000),
-    aUV: [
-      // x y
-      0, 0,
-      // x y
-      1, 0,
-      // x y
-      0, 1,
-      // x y
-      1, 1,
-    ],
-  },
-  indexBuffer: [
-    // First
-    0, 1, 2,
-    // Second
-    1, 2, 3,
-  ],
-})
+const maxParticles = 512
 
-const shader = PIXI.Shader.from({
-  gl: {
-    vertex,
-    fragment,
-  },
-})
+// const particlesBuffer = new PIXI.Buffer({
+//   data: new Float32Array(new Array(maxParticles * 2).fill(0)),
+//   usage: PIXI.BufferUsage.UNIFORM,
+// })
 
-const mesh = new PIXI.Mesh({
-  geometry,
-  shader,
-})
+// const particleResource = new BufferResource({
+//   buffer: particlesBuffer,
+//   size: maxParticles * 2,
+// })
