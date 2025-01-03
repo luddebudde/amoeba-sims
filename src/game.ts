@@ -185,39 +185,14 @@ export const createGame = async (
   let particlesT1 = structuredClone(particlesT0)
   let particlesTHalf = structuredClone(particlesT0)
 
-  const renderTexture1 = PIXI.RenderTexture.create({
+  const renderTextureOptions: PIXI.IBaseTextureOptions = {
     width: dimensions.x,
     height: dimensions.y,
-  })
-  const renderTexture2 = PIXI.RenderTexture.create({
-    width: dimensions.x,
-    height: dimensions.y,
-  })
-  const gl = app.renderer.gl
-
-  // WebGL texture setup with FLOAT texture format
-  const texture = gl.createTexture()
-  gl.bindTexture(gl.TEXTURE_2D, texture)
-
-  gl.texImage2D(
-    gl.TEXTURE_2D,
-    0,
-    gl.R32F, // Single 32-bit floating point channel
-    dimensions.x,
-    dimensions.y,
-    0,
-    gl.RED, // Use a single red channel for the float data
-    gl.FLOAT,
-    null,
-  )
-
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-
-  // console.log(texture)
-  // console.log(renderTexture1.baseTexture)
-  // renderTexture1.baseTexture = texture
-  // renderTexture2.baseTexture = texture
+    format: PIXI.FORMATS.RGBA,
+    type: PIXI.TYPES.FLOAT,
+  }
+  const renderTexture1 = PIXI.RenderTexture.create(renderTextureOptions)
+  const renderTexture2 = PIXI.RenderTexture.create(renderTextureOptions)
 
   let currentTexture = renderTexture1
   const getCurrentRenderTexture = () => currentTexture

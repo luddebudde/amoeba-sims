@@ -21,8 +21,8 @@ uniform vec2 particle;
 uniform vec2[512] particles;
 uniform int particlesCount;
 
-const float dispersion = 0.1;
-const float colorStrength = 1.0;
+const float variance = 0.1;
+const float colorStrength = 10.0;
 
 void main() {
     float distance = length(vPosition - particle);
@@ -31,10 +31,10 @@ void main() {
     for(int i = 0; i < particlesCount; i++) {
         vec2 p = particles[i];
         float d = length(vPosition - p);
-        float weight = exp(-d * d * dispersion);
+        float weight = exp(-d * d / (2.0 * variance));
         totalWeight += weight;
     }
-    float color = totalWeight * colorStrength / (pi * 2.0);
+    float color = totalWeight * colorStrength / (pi * 2.0 * variance);
 
     fragColor = vec4(color, color, color, 1.0);
 }
