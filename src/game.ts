@@ -21,9 +21,10 @@ import {
 } from './vec.ts'
 import { randomInCircle } from './math.ts'
 import * as PIXI from 'pixi.js'
-import vertex from './fade.vert?raw'
-import fragment from './fade.frag?raw'
+import fadeVertex from './fade.vert?raw'
+import fadeFragment from './fade.frag?raw'
 import timeSmoothFragment from './shaders/timeSmooth.frag?raw'
+import { hexToRgbArray } from './hexToVec.ts'
 
 export type Game = Awaited<ReturnType<typeof createGame>>
 
@@ -225,12 +226,14 @@ export const createGame = async (
       2,
     )
     .addIndex([0, 1, 2, 1, 2, 3])
-  const shader = PIXI.Shader.from(vertex, fragment, {
-    particle: [0, 0],
+
+  const particleUniformSize = 2 + 3
+  const dotShader = PIXI.Shader.from(fadeVertex, fadeFragment, {
     particlesCount: 0,
-    particles: new Array(maxParticles * 2).fill(0),
+    particles: new Array(maxParticles * particleUniformSize).fill(0),
   })
-  const particlesMesh = new PIXI.Mesh(geometry, shader)
+
+  const particlesMesh = new PIXI.Mesh(geometry, dotShader)
   const timeFilter = new PIXI.Filter(undefined, timeSmoothFragment)
   timeFilter.uniforms.previousTexture = getNextRenderTexture()
   particlesMesh.filters = [timeFilter]
@@ -241,8 +244,8 @@ export const createGame = async (
   rendererWorld.addChild(particlesMesh)
 
   world.addChild(sprite)
-  shader.uniforms.particle = [dimensions.x / 2, dimensions.y / 2]
-  shader.uniforms.particlesCount = 0
+  dotShader.uniforms.particle = [dimensions.x / 2, dimensions.y / 2]
+  dotShader.uniforms.particlesCount = 0
 
   const boundary = new Graphics()
   boundary.lineStyle(2, 0x333333) // Red color
@@ -357,12 +360,21 @@ export const createGame = async (
     //   true,
     // )
 
-    shader.uniforms.particlesCount = Math.min(particlesT1.length, maxParticles)
-    shader.uniforms.particles = new Float32Array(
-      particlesT1.flatMap((p) => [p.pos.x, p.pos.y]),
+    dotShader.uniforms.particlesCount = Math.min(
+      particlesT1.length,
+      maxParticles,
     )
+    dotShader.uniforms.particles = new Float32Array(
+      particlesT1.flatMap((p) => {
+        const particleType = findParticleType(scenario, p.type)
+        const color =
+          particleType === undefined
+            ? [0, 1, 1]
+            : (hexToRgbArray(particleType.color) ?? [1, 0, 0])
 
-    shader.uniforms.particle = [particlesT0[0].pos.x, particlesT0[0].pos.y]
+        return [p.pos.x, p.pos.y, ...color]
+      }),
+    )
 
     timeFilter.uniforms.uCurrentRenderTexture = getCurrentRenderTexture()
     app.renderer.render(rendererWorld, {
@@ -387,7 +399,7 @@ export const createGame = async (
   }
 }
 
-const maxParticles = 512
+const maxParticles = 1024
 
 // const particlesBuffer = new PIXI.Buffer({
 //   data: new Float32Array(new Array(maxParticles * 2).fill(0)),

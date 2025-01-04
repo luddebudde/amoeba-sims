@@ -17,24 +17,35 @@ uniform sampler2D emField;  // Texture containing the electric field
 const vec2 resolution = vec2(512.0, 512.0);
 const float pi = 3.14159265359;
 
-uniform vec2 particle;
-uniform vec2[512] particles;
+// struct Particle {
+//     vec2 pos;
+//     vec3 color;
+// };
+
+uniform float[204 * 5] particles;
 uniform int particlesCount;
 
-const float variance = 0.1;
-const float colorStrength = 10.0;
+const float variance = 1.0;
+const float colorStrength = 0.1;
 
 void main() {
-    float distance = length(vPosition - particle);
 
-    float totalWeight = 0.0;
+    vec3 totalWeight = vec3(0.0, 0.0, 0.0);
     for(int i = 0; i < particlesCount; i++) {
-        vec2 p = particles[i];
+        float x = particles[i * 5];
+        float y = particles[i * 5 + 1];
+
+        float r = particles[i * 5 + 2];
+        float g = particles[i * 5 + 3];
+        float b = particles[i * 5 + 4];
+        vec3 color = vec3(r, g, b);
+
+        vec2 p = vec2(x, y);
         float d = length(vPosition - p);
         float weight = exp(-d * d / (2.0 * variance));
-        totalWeight += weight;
+        totalWeight += weight * color;
     }
-    float color = totalWeight * colorStrength / (pi * 2.0 * variance);
+    // float color = totalWeight * colorStrength / (pi * 2.0 * variance);
 
-    fragColor = vec4(color, color, color, 1.0);
+    fragColor = vec4(totalWeight * colorStrength / (pi * 2.0 * variance), 1.0);
 }

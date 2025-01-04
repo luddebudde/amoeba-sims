@@ -10,7 +10,7 @@ void main(void) {
     vec3 previousFrame = texture2D(uCurrentRenderTexture, vTextureCoord).rgb;
     vec3 currentColor = texture2D(uSampler, vTextureCoord).rgb;
 
-    vec3 color = 0.99 * previousFrame + 0.7 * currentColor;
+    vec3 color = 0.99 * previousFrame + 1.0 * currentColor;
     gl_FragColor = vec4(color, 1.0);
 }
 
