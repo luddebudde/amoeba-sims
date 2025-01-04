@@ -265,20 +265,39 @@ export const createGame = async (
   })
 
   let kineticEnergy = 0
-
-  const text = new Text('Kinetic Energy: 0 J', new TextStyle({ fill: 'white' }))
-  app.stage.addChild(text)
+  let fps = 0
 
   app.stage.addChild(world)
 
+  const stats = new PIXI.Container()
+  const energyText = new Text(
+    'Kinetic Energy: 0 J',
+    new TextStyle({ fill: 'white' }),
+  )
+  const fpsText = new Text('0 fps', new TextStyle({ fill: 'white' }))
+  fpsText.y = 30
+  stats.addChild(energyText)
+  stats.addChild(fpsText)
+  app.stage.addChild(stats)
+
+  let timePrevious = performance.now()
+
   app.ticker.add((time) => {
     const dt = time
+    const timeNow = performance.now()
+    const dt2 = timeNow - timePrevious
+    timePrevious = timeNow
+    fps = 0.95 * fps + (0.05 * 1000) / dt2
 
-    kineticEnergy = particlesT0.reduce((acc, particle) => {
-      return acc + 0.5 * config.mass * lengthSq(particle.vel)
-    }, 0)
+    kineticEnergy =
+      0.9 * kineticEnergy +
+      0.01 *
+        particlesT0.reduce((acc, particle) => {
+          return acc + 0.5 * config.mass * lengthSq(particle.vel)
+        }, 0)
 
-    text.text = `Kinetic Energy: ${kineticEnergy.toFixed(2)} J`
+    energyText.text = `Kinetic Energy: ${kineticEnergy.toFixed(2)} J`
+    fpsText.text = `${fps.toFixed(0)} fps`
 
     particlesT0.forEach((particleT0, index) => {
       const particleTHalf = particlesTHalf[index]
