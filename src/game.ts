@@ -30,24 +30,10 @@ export type Game = Awaited<ReturnType<typeof createGame>>
 export type Particle = {
   pos: Vec
   vel: Vec
+  type: ParticleType['uid']
 }
 
-const createParticleGraphic = (config: ParticleConfig): Graphics => {
-  // Create a Graphics object
-  const redDot = new Graphics()
-
-  // Draw a red circle (dot)
-  redDot.beginFill(0xff0000) // Red color
-  redDot.drawCircle(0, 0, 1) // x=0, y=0, radius=10
-  redDot.scale = {
-    x: config.particleRadius,
-    y: config.particleRadius,
-  }
-  redDot.endFill()
-  return redDot
-}
-
-export type ParticleConfig = {
+export type ParticleType = {
   uid: string
   color: string
   particleCount: number
@@ -63,13 +49,13 @@ export type ParticleConfig = {
 }
 
 export type Scenario = {
-  particles: ParticleConfig[]
+  particles: ParticleType[]
 }
 
 function dampingForce(
   thisParticle: Particle,
   otherParticle: Particle,
-  config: ParticleConfig,
+  config: ParticleType,
 ) {
   const r = sub(thisParticle.pos, otherParticle.pos)
   const rAbs = length(r)
@@ -82,10 +68,13 @@ function dampingForce(
   return damping
 }
 
+const findParticleType = (scenario: Scenario, uid: string) =>
+  scenario.particles.find((it) => it.uid === uid)
+
 export const forceFromParticle = (
   thisParticle: Particle,
   otherParticle: Particle,
-  config: ParticleConfig,
+  config: ParticleType,
 ): Vec => {
   const r = sub(thisParticle.pos, otherParticle.pos)
   const rAbs = length(r)
@@ -101,10 +90,6 @@ export const forceFromParticle = (
     -config.maxAbs,
   )
 
-  // if (Math.random() > 0.9998) {
-  //   console.log(forceAbs)
-  // }
-
   const force = mult(rNorm, forceAbs)
   const damping =
     rAbs > config.particleRadius * 2
@@ -117,18 +102,23 @@ export const forceFromParticle = (
 function calculateForce(
   particle: Particle,
   mapRadius: number,
-  config: ParticleConfig,
+  scenario: Scenario,
   particles: Particle[],
 ) {
+  const particleType = findParticleType(scenario, particle.type)
+  if (particleType === undefined) {
+    console.warn('COULD NOT FIND PARTICEL TYPE')
+    return origin
+  }
   const fieldR = sub(origin, particle.pos)
   const fieldRNorm = normalise(fieldR)
 
   const fieldForce =
-    lengthSq(fieldR) > mapRadius ** 2
+    lengthSq(fieldR) > mapRadius * mapRadius
       ? mult(fieldRNorm, (length(fieldR) - mapRadius) * 0.001)
       : { x: 0, y: 0 }
 
-  const airResistance = mult(particle.vel, -config.airResistanceCoeff)
+  const airResistance = mult(particle.vel, -particleType.airResistanceCoeff)
 
   const otherParticleForce = particles.reduce(
     (force, otherParticle) => {
@@ -136,7 +126,7 @@ function calculateForce(
         return force
       }
 
-      const f = forceFromParticle(particle, otherParticle, config)
+      const f = forceFromParticle(particle, otherParticle, particleType)
 
       force.x += f.x
       force.y += f.y
@@ -150,10 +140,9 @@ function calculateForce(
 
 export const createGame = async (
   root: HTMLElement,
-  particleCount: number,
-  initialConfig: ParticleConfig,
+  initialScenario: Scenario,
 ) => {
-  let config = initialConfig
+  let scenario = initialScenario
 
   const app = new Application({
     background: '#292626',
@@ -177,12 +166,16 @@ export const createGame = async (
 
   const mapRadius = Math.min(dimensions.x, dimensions.y) / 2
 
-  let particlesT0: Particle[] = Array.from({ length: particleCount }).map(
-    () => ({
-      pos: randomInCircle(mapRadius),
-      vel: randomInCircle(1),
-    }),
-  )
+  let particlesT0: Particle[] = scenario.particles
+    .map((particleType) =>
+      Array.from({ length: particleType.particleCount }).map(() => ({
+        pos: randomInCircle(mapRadius),
+        vel: randomInCircle(1),
+        type: particleType.uid,
+      })),
+    )
+    .flat()
+
   let particlesT1 = structuredClone(particlesT0)
   let particlesTHalf = structuredClone(particlesT0)
 
@@ -199,10 +192,6 @@ export const createGame = async (
   const getCurrentRenderTexture = () => currentTexture
   const getNextRenderTexture = () =>
     currentTexture === renderTexture1 ? renderTexture2 : renderTexture1
-
-  const particleGraphics: Graphics[] = particlesT0.map(() =>
-    createParticleGraphic(config),
-  )
 
   const geometry = new PIXI.Geometry()
     .addAttribute(
@@ -261,10 +250,6 @@ export const createGame = async (
 
   world.addChild(boundary)
 
-  particleGraphics.forEach((particle) => {
-    // world.addChild(particle)
-  })
-
   let kineticEnergy = 0
   let fps = 0
 
@@ -290,21 +275,30 @@ export const createGame = async (
     timePrevious = timeNow
     fps = 0.95 * fps + (0.05 * 1000) / dt2
 
-    kineticEnergy =
-      0.9 * kineticEnergy +
-      0.01 *
-        particlesT0.reduce((acc, particle) => {
-          return acc + 0.5 * config.mass * lengthSq(particle.vel)
-        }, 0)
+    // TODO
+    // kineticEnergy =
+    //   0.9 * kineticEnergy +
+    //   0.01 *
+    //     particlesT0.reduce((acc, particle) => {
+    //       return acc + 0.5 * scenario.mass * lengthSq(particle.vel)
+    //     }, 0)
 
     energyText.text = `Kinetic Energy: ${kineticEnergy.toFixed(2)} J`
     fpsText.text = `${fps.toFixed(0)} fps`
 
     particlesT0.forEach((particleT0, index) => {
       const particleTHalf = particlesTHalf[index]
-      const force = calculateForce(particleT0, mapRadius, config, particlesT0)
+      const force = calculateForce(particleT0, mapRadius, scenario, particlesT0)
 
-      const acc = div(force, config.mass)
+      const particleType = findParticleType(scenario, particleT0.type)
+
+      if (particleType === undefined) {
+        particleTHalf.vel = origin
+        particleTHalf.pos = particleT0.pos
+        return
+      }
+
+      const acc = div(force, particleType.mass)
       const dVel = mult(acc, dt / 2)
 
       const v = sum(particleT0.vel, dVel)
@@ -324,14 +318,21 @@ export const createGame = async (
       const particleTHalf = particlesTHalf[index]
       const particleT1 = particlesT1[index]
 
+      const particleType = findParticleType(scenario, particleT0.type)
+
+      if (particleType === undefined) {
+        particleT1.vel = origin
+        return
+      }
+
       const force = calculateForce(
         particleTHalf,
         mapRadius,
-        config,
+        scenario,
         particlesTHalf,
       )
 
-      const acc = div(force, config.mass)
+      const acc = div(force, particleType.mass)
       const dVel = mult(acc, dt / 2)
 
       const v = sum(particleTHalf.vel, dVel)
@@ -349,11 +350,6 @@ export const createGame = async (
     //   particleT1.vel = v1
     //   particleT1.pos = sum(particleT0.pos, v1)
     // })
-
-    //   // Draw the particles
-    particlesT1.forEach((particle, index) => {
-      particleGraphics[index].position.copyFrom(particle.pos)
-    })
 
     // buffer.setDataWithSize(
     //   new Float32Array(particlesT1.flatMap((p) => [p.pos.x, p.pos.y])),
@@ -385,14 +381,8 @@ export const createGame = async (
       root.removeChild(canvas)
       app.destroy()
     },
-    setConfig: (newConfig: ParticleConfig) => {
-      config = newConfig
-      particlesT0.forEach((_, index) => {
-        particleGraphics[index].scale = {
-          x: config.particleRadius,
-          y: config.particleRadius,
-        }
-      })
+    setScenario: (newScenario: Scenario) => {
+      scenario = newScenario
     },
   }
 }

@@ -8,7 +8,7 @@ import {
   useState,
 } from 'react'
 import {
-  ParticleConfig,
+  ParticleType,
   createGame,
   forceFromParticle,
   Game,
@@ -35,7 +35,7 @@ import {
 } from 'pure-parse'
 import { HexColorPicker } from 'react-colorful'
 
-export const Chart: FunctionComponent<{ config: ParticleConfig }> = (props) => {
+export const Chart: FunctionComponent<{ config: ParticleType }> = (props) => {
   const { config } = props
   const otherParticle: Particle = {
     pos: { x: 0, y: 0 },
@@ -165,7 +165,7 @@ type ConfigStorage = {
 
 const defaultParticleCount = 100
 
-const parseParticleConfig = object<ParticleConfig>({
+const parseParticleConfig = object<ParticleType>({
   uid: parseString,
   color: parseString,
   particleCount: withDefault(parseNumber, defaultParticleCount),
@@ -194,7 +194,7 @@ const parseConfigStorage = object<ConfigStorage>({
   configs: array(parseNamedConfig),
 })
 
-const createDefaultParticle = (): ParticleConfig => ({
+const createDefaultParticle = (): ParticleType => ({
   uid: v4(),
   color: '#ffffff',
   particleCount: defaultParticleCount,
@@ -227,11 +227,12 @@ function App() {
     scenario.particles[0].uid,
   )
 
-  // TODO Remove non-null assertion
-  const config = scenario.particles.find((it) => it.uid === currentParticleUid)!
+  const config =
+    scenario.particles.find((it) => it.uid === currentParticleUid) ??
+    scenario.particles[0]
 
   const setConfig =
-    (uid: string): Dispatch<SetStateAction<ParticleConfig>> =>
+    (uid: string): Dispatch<SetStateAction<ParticleType>> =>
     (getNewState) => {
       if (typeof getNewState === 'function') {
         setScenario((prevScenario) => {
@@ -242,7 +243,7 @@ function App() {
             (it) => it.uid !== uid,
           )
           return {
-            particles: [...unaltered, newParticleConfig],
+            particles: [newParticleConfig, ...unaltered],
           }
         })
       } else {
@@ -255,7 +256,7 @@ function App() {
   useAsyncEffect(
     () =>
       rightEl.current
-        ? createGame(rightEl.current, config.particleCount, config)
+        ? createGame(rightEl.current, scenario)
         : Promise.resolve(undefined),
     (createdGame) => {
       game.current = createdGame
@@ -263,11 +264,12 @@ function App() {
     (createdGame) => {
       createdGame?.destroy()
     },
+    // TODO replace this with a button
     [config.particleCount],
   )
 
   useEffect(() => {
-    game.current?.setConfig(config)
+    game.current?.setScenario(scenario)
   }, [config])
 
   const configStorageResult = parseConfigStorage(configStorageUnkown)
@@ -310,7 +312,7 @@ function App() {
               borderLeft: '1px solid lightgray',
             }}
           >
-            <Chart config={config} />
+            {/* <Chart config={config} /> */}
           </div>
         )}
 
@@ -341,24 +343,18 @@ function App() {
             >
               Save
             </button>
-            <button
-              onClick={(e) =>
-                saveConfigStorageUnknown((configStorage: unknown) => {
-                  return {
-                    configs: [],
-                  }
-                })
-              }
-            >
-              delete all
-            </button>
           </div>
 
           <div>
             {configStorage?.configs.map((namedConfig) => (
               <div>
                 {namedConfig.name}
-                <button onClick={(e) => setScenario(namedConfig.scenario)}>
+                <button
+                  onClick={(e) => {
+                    setScenario(namedConfig.scenario)
+                    setCurrentParticleUid(namedConfig.scenario.particles[0].uid)
+                  }}
+                >
                   Load
                 </button>
                 <button
@@ -389,9 +385,7 @@ function App() {
             <button
               style={{
                 backgroundColor:
-                  currentParticleUid === particleConfig.uid
-                    ? 'lightgrey'
-                    : undefined,
+                  config.uid === particleConfig.uid ? 'lightgrey' : undefined,
               }}
               onClick={() => {
                 setCurrentParticleUid(particleConfig.uid)
@@ -414,7 +408,7 @@ function App() {
         </div>
         <ParticleConfigView
           config={config}
-          setConfig={setConfig(currentParticleUid)}
+          setConfig={setConfig(config.uid)}
         />
       </div>
 
@@ -460,8 +454,8 @@ const Input = (props: {
 }
 
 type ParticleConfigViewProps = {
-  config: ParticleConfig
-  setConfig: Dispatch<SetStateAction<ParticleConfig>>
+  config: ParticleType
+  setConfig: Dispatch<SetStateAction<ParticleType>>
 }
 
 const ParticleConfigView = (props: ParticleConfigViewProps) => {

@@ -30,7 +30,7 @@ export const div = (a: Vec, b: number): Vec => ({
 
 export const dot = (a: Vec, b: Vec): number => a.x * b.x + a.y * b.y
 
-export const length = (a: Vec): number => Math.sqrt(a.x ** 2 + a.y ** 2)
-export const lengthSq = (a: Vec): number => a.x ** 2 + a.y ** 2
+export const length = (a: Vec): number => Math.sqrt(a.x * a.x + a.y * a.y)
+export const lengthSq = (a: Vec): number => a.x * a.x + a.y * a.y
 
 export const normalise = (a: Vec): Vec => div(a, length(a))
