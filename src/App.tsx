@@ -177,7 +177,6 @@ const parseParticleConfig = object<ParticleConfig>({
   particleRadius: parseNumber,
   rOffset: parseNumber,
   rScale: parseNumber,
-  springCoeff: parseNumber,
   springDampingCoeff: parseNumber,
 })
 
@@ -207,7 +206,6 @@ const createDefaultParticle = (): ParticleConfig => ({
   particleRadius: 5,
   rOffset: 0,
   rScale: 1,
-  springCoeff: 0,
   springDampingCoeff: 0,
 })
 
@@ -597,23 +595,6 @@ force = k1 / rPlus ** 3 + k2 / rPlus ** 2`}
         step={0.01}
       />
 
-      <h3>Spring Coefficient</h3>
-
-      <Input
-        value={config.springCoeff}
-        onChange={(newValue: number) => {
-          setConfig((config) => {
-            return {
-              ...config,
-              springCoeff: newValue,
-            }
-          })
-        }}
-        min={0}
-        max={0.1}
-        step={0.001}
-      />
-
       <h3>Spring Damping Coefficient</h3>
 
       <Input
@@ -630,20 +611,6 @@ force = k1 / rPlus ** 3 + k2 / rPlus ** 2`}
         max={0.1}
         step={0.0001}
       />
-
-      <button
-        onClick={() => {
-          setConfig((config) => {
-            return {
-              ...config,
-              springDampingCoeff:
-                2 * Math.sqrt(config.springCoeff * config.mass),
-            }
-          })
-        }}
-      >
-        Critical: {2 * Math.sqrt(config.springCoeff * config.mass)}
-      </button>
 
       <h3>Particle Radius</h3>
 

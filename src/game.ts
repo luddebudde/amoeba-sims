@@ -56,7 +56,6 @@ export type ParticleConfig = {
   k1: number
   k2: number
   maxAbs: number
-  springCoeff: number
   airResistanceCoeff: number
   springDampingCoeff: number
   particleRadius: number
@@ -79,10 +78,8 @@ function dampingForce(
   const relV = sub(thisParticle.vel, otherParticle.vel)
   const dxdt = dot(relV, rNorm)
   const damping = mult(rNorm, -dxdt * config.springDampingCoeff)
-  const dampingForceAbs =
-    (config.particleRadius * 2 - rAbs) * config.springCoeff
-  const dampingForce = mult(rNorm, dampingForceAbs)
-  return add(dampingForce, damping)
+
+  return damping
 }
 
 export const forceFromParticle = (
@@ -92,24 +89,28 @@ export const forceFromParticle = (
 ): Vec => {
   const r = sub(thisParticle.pos, otherParticle.pos)
   const rAbs = length(r)
+
   const rNorm = div(r, rAbs)
 
-  const k1 = config.k1
-  const k2 = config.k2
   const rPlus = (1 / config.rScale) * rAbs - config.rOffset
   const forceAbs = Math.max(
-    Math.min(k1 / rPlus ** 3 + k2 / rPlus ** 2, config.maxAbs),
+    Math.min(
+      config.k1 / (rPlus * rPlus * rPlus) + config.k2 / (rPlus * rPlus),
+      config.maxAbs,
+    ),
     -config.maxAbs,
   )
 
-  if (Math.random() > 0.9998) {
-  }
+  // if (Math.random() > 0.9998) {
+  //   console.log(forceAbs)
+  // }
+
   const force = mult(rNorm, forceAbs)
   const damping =
     rAbs > config.particleRadius * 2
       ? origin
       : dampingForce(thisParticle, otherParticle, config)
-  //gbdgdgdd
+
   return add(force, damping)
 }
 
