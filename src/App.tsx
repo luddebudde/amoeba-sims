@@ -172,6 +172,7 @@ const parseParticleConfig = object<ParticleType>({
   airResistanceCoeff: parseNumber,
   k1: parseNumber,
   k2: parseNumber,
+  charge: parseNumber,
   mass: parseNumber,
   maxAbs: withDefault(parseNumber, 1),
   particleRadius: parseNumber,
@@ -201,6 +202,7 @@ const createDefaultParticle = (): ParticleType => ({
   airResistanceCoeff: 0,
   k1: 0,
   k2: 0,
+  charge: 0,
   maxAbs: 1,
   mass: 1,
   particleRadius: 5,
@@ -210,6 +212,7 @@ const createDefaultParticle = (): ParticleType => ({
 })
 
 function App() {
+  const [restartKey, setRestartKey] = useState(0)
   const [showChart, setShowChart] = useState(false)
   const game = useRef<Game | undefined>(undefined)
   const [newConfigName, setNewConfigName] = useState('')
@@ -265,7 +268,7 @@ function App() {
       createdGame?.destroy()
     },
     // TODO replace this with a button
-    [config.particleCount],
+    [restartKey],
   )
 
   useEffect(() => {
@@ -294,6 +297,14 @@ function App() {
         <button onClick={() => setShowChart(!showChart)}>
           Toggle chart : {showChart ? 'True' : 'False'}
         </button>
+        <button
+          onClick={() => {
+            setRestartKey((i) => i + 1)
+          }}
+        >
+          RESTART
+        </button>
+        {restartKey}
 
         {showChart && (
           <div
@@ -530,8 +541,7 @@ const ParticleConfigView = (props: ParticleConfigViewProps) => {
         step={0.01}
       />
 
-      <h3>Graviation constant</h3>
-
+      <h3>Graviation mass</h3>
       <Input
         value={config.k2}
         onChange={(newValue: number) => {
@@ -544,6 +554,22 @@ const ParticleConfigView = (props: ParticleConfigViewProps) => {
         }}
         min={-10}
         max={10}
+        step={0.01}
+      />
+
+      <h3>Charge</h3>
+      <Input
+        value={config.charge}
+        onChange={(newValue: number) => {
+          setConfig((config) => {
+            return {
+              ...config,
+              charge: newValue,
+            }
+          })
+        }}
+        min={-1}
+        max={1}
         step={0.01}
       />
 

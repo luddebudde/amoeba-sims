@@ -19,7 +19,7 @@ import {
   sum,
   Vec,
 } from './vec.ts'
-import { randomInCircle } from './math.ts'
+import { minMax, randomInCircle } from './math.ts'
 import * as PIXI from 'pixi.js'
 import fadeVertex from './fade.vert?raw'
 import fadeFragment from './fade.frag?raw'
@@ -38,6 +38,7 @@ export type ParticleType = {
   uid: string
   color: string
   particleCount: number
+  charge: number
   rOffset: number
   rScale: number
   k1: number
@@ -75,29 +76,42 @@ const findParticleType = (scenario: Scenario, uid: string) =>
 export const forceFromParticle = (
   thisParticle: Particle,
   otherParticle: Particle,
-  config: ParticleType,
+  scenario: Scenario,
 ): Vec => {
+  const thisType = findParticleType(scenario, thisParticle.type)
+  const otherType = findParticleType(scenario, otherParticle.type)
+
+  if (thisType === undefined || otherType === undefined) {
+    return origin
+  }
+
   const r = sub(thisParticle.pos, otherParticle.pos)
   const rAbs = length(r)
 
   const rNorm = div(r, rAbs)
 
-  const rPlus = (1 / config.rScale) * rAbs - config.rOffset
-  const forceAbs = Math.max(
-    Math.min(
-      config.k1 / (rPlus * rPlus * rPlus) + config.k2 / (rPlus * rPlus),
-      config.maxAbs,
-    ),
-    -config.maxAbs,
+  const rPlus = (1 / thisType.rScale) * rAbs - thisType.rOffset
+  const gForceAbs = minMax(
+    thisType.k1 / (rPlus * rPlus * rPlus) + thisType.k2 / (rPlus * rPlus),
+    -thisType.maxAbs,
+    thisType.maxAbs,
   )
 
-  const force = mult(rNorm, forceAbs)
+  const gForce = mult(rNorm, gForceAbs)
   const damping =
-    rAbs > config.particleRadius * 2
+    rAbs > thisType.particleRadius + otherType.particleRadius
       ? origin
-      : dampingForce(thisParticle, otherParticle, config)
+      : dampingForce(thisParticle, otherParticle, thisType)
 
-  return add(force, damping)
+  const ke = 40
+  const eForceAbs = minMax(
+    (ke * (thisType.charge * otherType.charge)) / (rPlus * rPlus),
+    -thisType.maxAbs,
+    thisType.maxAbs,
+  )
+  const eForce = mult(rNorm, eForceAbs)
+
+  return sum(gForce, damping, eForce)
 }
 
 function calculateForce(
@@ -127,7 +141,7 @@ function calculateForce(
         return force
       }
 
-      const f = forceFromParticle(particle, otherParticle, particleType)
+      const f = forceFromParticle(particle, otherParticle, scenario)
 
       force.x += f.x
       force.y += f.y
