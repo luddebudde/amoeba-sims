@@ -552,7 +552,7 @@ const ParticleConfigView = (props: ParticleConfigViewProps) => {
         }}
         min={-10}
         max={10}
-        step={0.1}
+        step={0.01}
       />
 
       <pre>
