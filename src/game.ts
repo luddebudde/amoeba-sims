@@ -7,7 +7,6 @@ import {
   TextStyle,
 } from 'pixi.js'
 import {
-  add,
   div,
   dot,
   length,
@@ -19,12 +18,19 @@ import {
   sum,
   Vec,
 } from './vec.ts'
-import { minMax, randomInCircle } from './math.ts'
+import { randomInCircle } from './math.ts'
 import * as PIXI from 'pixi.js'
 import fadeVertex from './fade.vert?raw'
 import fadeFragment from './fade.frag?raw'
 import timeSmoothFragment from './shaders/timeSmooth.frag?raw'
 import { hexToRgbArray } from './hexToVec.ts'
+import {
+  clipForce,
+  electricField,
+  electricForce,
+  magneticField,
+  magneticForce,
+} from './physcis.ts'
 
 export type Game = Awaited<ReturnType<typeof createGame>>
 
@@ -91,11 +97,8 @@ export const forceFromParticle = (
   const rNorm = div(r, rAbs)
 
   const rPlus = (1 / thisType.rScale) * rAbs - thisType.rOffset
-  const gForceAbs = minMax(
-    thisType.k1 / (rPlus * rPlus * rPlus) + thisType.k2 / (rPlus * rPlus),
-    -thisType.maxAbs,
-    thisType.maxAbs,
-  )
+  const gForceAbs =
+    thisType.k1 / (rPlus * rPlus * rPlus) + thisType.k2 / (rPlus * rPlus)
 
   const gForce = mult(rNorm, gForceAbs)
   const damping =
@@ -103,15 +106,22 @@ export const forceFromParticle = (
       ? origin
       : dampingForce(thisParticle, otherParticle, thisType)
 
-  const ke = 40
-  const eForceAbs = minMax(
-    (ke * (thisType.charge * otherType.charge)) / (rPlus * rPlus),
-    -thisType.maxAbs,
-    thisType.maxAbs,
-  )
-  const eForce = mult(rNorm, eForceAbs)
+  // Smaller -> stronger electric field
+  const permittivity = 0.01
+  const eField = electricField(permittivity, r, otherType.charge)
+  const eForce = electricForce(thisType.charge, eField)
 
-  return sum(gForce, damping, eForce)
+  // Larger -> stronger magnetic field
+  const permeability = 10
+  const bField = magneticField(
+    permeability,
+    r,
+    otherType.charge,
+    otherParticle.vel,
+  )
+  const bForce = magneticForce(thisType.charge, thisParticle.vel, bField)
+
+  return clipForce(sum(gForce, damping, eForce, bForce), thisType.maxAbs)
 }
 
 function calculateForce(
