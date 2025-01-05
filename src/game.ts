@@ -26,10 +26,10 @@ import timeSmoothFragment from './shaders/timeSmooth.frag?raw'
 import { hexToRgbArray } from './hexToVec.ts'
 import {
   clipForce,
-  electricField,
-  electricForce,
-  magneticField,
-  magneticForce,
+  emField,
+  emForce,
+  gravityField,
+  gravityForce,
 } from './physcis.ts'
 
 export type Game = Awaited<ReturnType<typeof createGame>>
@@ -60,6 +60,7 @@ export type Scenario = {
   particles: ParticleType[]
 }
 
+// TODO combine both springs
 function dampingForce(
   thisParticle: Particle,
   otherParticle: Particle,
@@ -71,13 +72,19 @@ function dampingForce(
 
   const relV = sub(thisParticle.vel, otherParticle.vel)
   const dxdt = dot(relV, rNorm)
-  const damping = mult(rNorm, -dxdt * config.springDampingCoeff)
-
-  return damping
+  return mult(rNorm, -dxdt * config.springDampingCoeff)
 }
 
 const findParticleType = (scenario: Scenario, uid: string) =>
   scenario.particles.find((it) => it.uid === uid)
+
+// Physical constants: TODO parameterize and add controls to UI
+// Strength of gravity
+const G = 1.0
+// Smaller -> stronger electric field
+const permittivity = 0.01
+// Larger -> stronger magnetic field
+const permeability = 10
 
 export const forceFromParticle = (
   thisParticle: Particle,
@@ -88,40 +95,40 @@ export const forceFromParticle = (
   const otherType = findParticleType(scenario, otherParticle.type)
 
   if (thisType === undefined || otherType === undefined) {
+    // Something is wrong: cannot calculate the force
     return origin
   }
 
   const r = sub(thisParticle.pos, otherParticle.pos)
-  const rAbs = length(r)
+  const rNorm2 = lengthSq(r)
 
-  const rNorm = div(r, rAbs)
+  // If the particles are near each other, repel (1/dist**3)
+  const nearRepulsionF = mult(r, thisType.k1 / (rNorm2 * rNorm2))
 
-  const rPlus = (1 / thisType.rScale) * rAbs - thisType.rOffset
-  const gForceAbs =
-    thisType.k1 / (rPlus * rPlus * rPlus) + thisType.k2 / (rPlus * rPlus)
+  const gravityF = gravityForce(thisType.mass, gravityField(G, r, thisType.k2))
 
-  const gForce = mult(rNorm, gForceAbs)
-  const damping =
-    rAbs > thisType.particleRadius + otherType.particleRadius
+  // If particles are overlapping, simulate loss of kinetic energy
+  const dampingF =
+    rNorm2 > thisType.particleRadius + otherType.particleRadius
       ? origin
       : dampingForce(thisParticle, otherParticle, thisType)
 
-  // Smaller -> stronger electric field
-  const permittivity = 0.01
-  const eField = electricField(permittivity, r, otherType.charge)
-  const eForce = electricForce(thisType.charge, eField)
-
-  // Larger -> stronger magnetic field
-  const permeability = 10
-  const bField = magneticField(
-    permeability,
-    r,
-    otherType.charge,
-    otherParticle.vel,
+  const lorentzF = emForce(
+    thisType.charge,
+    thisParticle.vel,
+    ...emField(
+      permittivity,
+      permeability,
+      r,
+      otherType.charge,
+      otherParticle.vel,
+    ),
   )
-  const bForce = magneticForce(thisType.charge, thisParticle.vel, bField)
 
-  return clipForce(sum(gForce, damping, eForce, bForce), thisType.maxAbs)
+  const totalF = sum(nearRepulsionF, dampingF, gravityF, lorentzF)
+
+  // Ensure that the force does not become too great
+  return clipForce(totalF, thisType.maxAbs)
 }
 
 function calculateForce(

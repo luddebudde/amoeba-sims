@@ -11,6 +11,14 @@ import {
 
 const pi4 = 4 * Math.PI
 
+export const gravityField = (G: number, r: Vec, mass: number): Vec => {
+  const len = length(r)
+  return mult(r, (G * mass) / (len * len * len))
+}
+
+export const gravityForce = (mass: number, gField: Vec): Vec =>
+  mult(gField, mass)
+
 export const electricFieldAbs = (
   permittivity: number,
   r: Vec,
@@ -25,10 +33,11 @@ export const electricField = (
   charge: number,
 ): Vec => {
   const len = length(r)
-  return mult(r, charge / (len * len * len * permittivity * pi4))
+  return mult(r, charge / (pi4 * len * len * len * permittivity))
 }
 
-export const electricForce = (charge: number, e: Vec): Vec => mult(e, charge)
+export const electricForce = (charge: number, eField: Vec): Vec =>
+  mult(eField, charge)
 
 /**
  * Calculate the magnetic field at a point due to a moving charge
@@ -45,19 +54,31 @@ export const magneticField = (
   v: Vec,
 ): number => {
   const len = length(r)
-  return (permeability * charge * crossPlane(v, r)) / (len * len * len * pi4)
+  return (permeability * crossPlane(v, r) * charge) / (pi4 * len * len * len)
 }
 
 /**
  * Calculate the force on a charged particle due to a magnetic field
  * @param charge the charge of the affected particle
  * @param v the velocity of the affected particle
- * @param b the magnetic field vector
+ * @param bField the magnetic field vector
  */
-export const magneticForce = (charge: number, v: Vec, b: number): Vec =>
-  crossOrthogonal(v, b * charge)
+export const magneticForce = (charge: number, v: Vec, bField: number): Vec =>
+  crossOrthogonal(v, bField * charge)
 
-export const lorentzForce = (charge: number, v: Vec, e: Vec, b: number): Vec =>
+export const emField = (
+  permittivity: number,
+  permeability: number,
+  r: Vec,
+  charge: number,
+  v: Vec,
+): [Vec, number] => {
+  const len = length(r)
+  const k = charge / (len * len * len * pi4)
+  return [mult(r, k / permittivity), permeability * crossPlane(v, r) * k]
+}
+
+export const emForce = (charge: number, v: Vec, e: Vec, b: number): Vec =>
   add(electricForce(charge, e), magneticForce(charge, v, b))
 
 export const clipForce = (force: Vec, max: number): Vec => {
@@ -67,3 +88,6 @@ export const clipForce = (force: Vec, max: number): Vec => {
   }
   return mult(normalise(force), max)
 }
+
+export const kineticEnergy = (mass: number, vel: Vec): number =>
+  0.5 * mass * lengthSq(vel)

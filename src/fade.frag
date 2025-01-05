@@ -25,8 +25,8 @@ const float pi = 3.14159265359;
 uniform float[204 * 5] particles;
 uniform int particlesCount;
 
-const float variance = 1.0;
-const float colorStrength = 0.1;
+const float variance = 3.0;
+const float colorStrength = 0.01;
 
 void main() {
 
