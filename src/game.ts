@@ -198,7 +198,7 @@ export const createGame = async (
 
   const mapRadius = Math.min(dimensions.x, dimensions.y) / 2
 
-  const maxInitialVelocity = 10
+  const maxInitialVelocity = 1
   let particlesT0: Particle[] = scenario.particles
     .map((particleType) =>
       Array.from({ length: particleType.particleCount }).map(() => ({
