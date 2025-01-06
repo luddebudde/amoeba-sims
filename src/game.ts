@@ -198,11 +198,12 @@ export const createGame = async (
 
   const mapRadius = Math.min(dimensions.x, dimensions.y) / 2
 
+  const maxInitialVelocity = 10
   let particlesT0: Particle[] = scenario.particles
     .map((particleType) =>
       Array.from({ length: particleType.particleCount }).map(() => ({
         pos: randomInCircle(mapRadius),
-        vel: randomInCircle(1),
+        vel: randomInCircle(maxInitialVelocity),
         type: particleType.uid,
       })),
     )
@@ -258,8 +259,12 @@ export const createGame = async (
     )
     .addIndex([0, 1, 2, 1, 2, 3])
 
-  const particleUniformSize = 2 + 3
+  // 2 for position
+  // 2 for velocity
+  // 3 for color
+  const particleUniformSize = 2 + 2 + 3
   const dotShader = PIXI.Shader.from(fadeVertex, fadeFragment, {
+    dt: 0,
     particlesCount: 0,
     particles: new Array(maxParticles * particleUniformSize).fill(0),
   })
@@ -302,6 +307,7 @@ export const createGame = async (
 
   let timePrevious = performance.now()
 
+  // app.ticker.maxFPS = 5
   app.ticker.add((time) => {
     const dt = time
     const timeNow = performance.now()
@@ -391,6 +397,7 @@ export const createGame = async (
     //   true,
     // )
 
+    dotShader.uniforms.dt = dt
     dotShader.uniforms.particlesCount = Math.min(
       particlesT1.length,
       maxParticles,
@@ -403,7 +410,7 @@ export const createGame = async (
             ? [0, 1, 1]
             : (hexToRgbArray(particleType.color) ?? [1, 0, 0])
 
-        return [p.pos.x, p.pos.y, ...color]
+        return [p.pos.x, p.pos.y, p.vel.x, p.vel.y, ...color]
       }),
     )
 
