@@ -40,6 +40,7 @@ export const Chart: FunctionComponent<{ config: ParticleType }> = (props) => {
   const otherParticle: Particle = {
     pos: { x: 0, y: 0 },
     vel: { x: 0, y: 0 },
+    type: 'dummy-id-1',
   }
   const xs = Array.from({ length: 100 }, (_, i) => i / 5)
   const data = xs.map((x) => ({
@@ -48,8 +49,10 @@ export const Chart: FunctionComponent<{ config: ParticleType }> = (props) => {
       {
         pos: { x: x, y: 0 },
         vel: { x: 0, y: 0 },
+        type: 'dummy-id-2',
       },
       otherParticle,
+      // @ts-ignore -- TODO
       config,
     ).x,
   }))
@@ -334,7 +337,7 @@ function App() {
               value={newConfigName}
             />
             <button
-              onClick={(e) =>
+              onClick={(_e) =>
                 saveConfigStorageUnknown((configStorage: unknown) => {
                   const result = parseConfigStorage(configStorage)
 
@@ -361,7 +364,7 @@ function App() {
               <div>
                 {namedConfig.name}
                 <button
-                  onClick={(e) => {
+                  onClick={(_e) => {
                     setScenario(namedConfig.scenario)
                     setCurrentParticleUid(namedConfig.scenario.particles[0].uid)
                   }}
@@ -369,7 +372,7 @@ function App() {
                   Load
                 </button>
                 <button
-                  onClick={(e) =>
+                  onClick={(_e) =>
                     saveConfigStorageUnknown((configStorage: unknown) => {
                       const result = parseConfigStorage(configStorage)
 
