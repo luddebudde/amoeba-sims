@@ -8,6 +8,7 @@
 .left {
   min-width: 300px;
   max-width: 20vw;
+  overflow-y: auto;
 }
 
 .right {

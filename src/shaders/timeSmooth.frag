@@ -4,13 +4,15 @@ uniform sampler2D uSampler;
 uniform sampler2D uCurrentRenderTexture;
 
 const float alpha = 1.0;
+uniform float dt;
 
 
 void main(void) {
     vec3 previousFrame = texture2D(uCurrentRenderTexture, vTextureCoord).rgb;
     vec3 currentColor = texture2D(uSampler, vTextureCoord).rgb;
 
-    vec3 color = 0.99 * previousFrame + 1.0 * currentColor;
+    float a = exp(-0.01 * dt);
+    vec3 color = a * previousFrame + 20.0 * (1.0 - a) * currentColor;
     gl_FragColor = vec4(color, 1.0);
 }
 

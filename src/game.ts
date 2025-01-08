@@ -414,6 +414,7 @@ export const createGame = async (
       }),
     )
 
+    timeFilter.uniforms.dt = dt
     timeFilter.uniforms.uCurrentRenderTexture = getCurrentRenderTexture()
     app.renderer.render(rendererWorld, {
       renderTexture: getNextRenderTexture(),

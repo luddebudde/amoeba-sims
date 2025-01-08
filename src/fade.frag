@@ -39,6 +39,13 @@ mat2 adjugate(mat2 m) {
     return mat2(m[1][1], -m[0][1], -m[1][0], m[0][0]);
 }
 
+mat2 sqrtDiagonal(mat2 D) {
+    return mat2(
+        sqrt(D[0][0]), 0.0,
+        0.0, sqrt(D[1][1])
+    );
+}
+
 void main() {
     float sigmaBase = 1.0;
 
@@ -66,10 +73,10 @@ void main() {
         float velAbs = length(vel);
 
         mat2 covInv = covBaseInv;
-        float covDetSq = sqrt(covDetBase);
+        float covDet = covDetBase;
 
         if(drAbs > sigmaBase * 0.5) {
-            // A stretched covariance matrix
+            // The eigenvalues represent the strech in 1) the moving direction and 2) the orthogonal direction
             mat2 cov_stretched = mat2(
                 // The variance in the moving direction is stretched
                 sigmaBase * (1.0 + 2.0 * drAbs), 0.0,
@@ -77,33 +84,52 @@ void main() {
                 0.0, sigmaBase
             );
 
+            vec2 velNorm = normalize(vel);
+
             // Rotation matrix to align with the velocity vector
             mat2 R = mat2(
                 // cos(angle), -sin(angle),
-                vel.x / velAbs, vel.y / velAbs,
+                velNorm.x , velNorm.y ,
                 // sin(angle), cos(angle)
-                -vel.y / velAbs, vel.x / velAbs
+                -velNorm.y, velNorm.x
             );
 
-            // The new covariance matrix
+            // The new covariance matrix is the rotated diagonal matrix
             mat2 cov_rotated = R * cov_stretched * transpose(R);
-            mat2 cov_rotated_inv = adjugate(cov_rotated) / covDetSq;
             float cov_rotated_det = determinant(cov_rotated);
+            mat2 cov_rotated_inv = adjugate(cov_rotated) / cov_rotated_det;
 
             covInv = cov_rotated_inv;
-            covDetSq = sqrt(cov_rotated_det);
+            covDet = cov_rotated_det;
         }
 
         vec2 r = vPosition - particlePos;
+        vec2 rNorm = normalize(r);
+        float rAbs = length(r);
 
         // rT * covInv * r
-        float Q = dot(r, covInv * r);
+        // The transformed r squared
+        vec2 covInvTimesR = covInv * r;
+        float r2Q = dot(r, covInvTimesR);
 
-        float weight = exp(-0.5 * Q) / sqrt(covDetSq);
+        float normalDistributionWeight = exp(-0.5 * r2Q) / (2.0 * pi * sqrt(covDet));
 
-        totalWeight += weight * color;
+        float permittivity = 0.07;
+        float E_abs = 1.0 / (r2Q * permittivity * sqrt(covDet));
+
+//        totalWeight += normalDistributionWeight * color;
+
+//        float permeability = 0.0;
+        float permeability = 2e2;
+        // The transformed r (non-squared)
+        // I expected to have to multiply the sqaure root of the covariance, but this seems to work better
+        vec2 rQ = covInvTimesR;
+        float B_abs = abs(cross(vec3(vel, 0.0), vec3(covInv * rNorm, 0.0)) * permeability / ( 4.0 * pi * dot(rQ, rQ))).z;
+
+        totalWeight += vec3(E_abs, 0.0, B_abs);
+
     }
-    vec3 color = colorStrength * totalWeight / (2.0 * pi);
+    vec3 color = colorStrength * totalWeight;
 
     fragColor = vec4(color, 1.0);
 }
