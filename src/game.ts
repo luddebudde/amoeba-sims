@@ -56,8 +56,14 @@ export type ParticleType = {
   mass: number
 }
 
+type SharedConfig = {
+  colorStrenght: number
+  tailFade: number
+}
+
 export type Scenario = {
   particles: ParticleType[]
+  shared: SharedConfig
 }
 
 // TODO combine both springs
@@ -263,14 +269,18 @@ export const createGame = async (
   // 2 for velocity
   // 3 for color
   const particleUniformSize = 2 + 2 + 3
+
   const dotShader = PIXI.Shader.from(fadeVertex, fadeFragment, {
     dt: 0,
     particlesCount: 0,
     particles: new Array(maxParticles * particleUniformSize).fill(0),
+    colorStrength: scenario.shared.colorStrenght,
   })
 
   const particlesMesh = new PIXI.Mesh(geometry, dotShader)
-  const timeFilter = new PIXI.Filter(undefined, timeSmoothFragment)
+  const timeFilter = new PIXI.Filter(undefined, timeSmoothFragment, {
+    tailFade: scenario.shared.tailFade,
+  })
   timeFilter.uniforms.previousTexture = getNextRenderTexture()
   particlesMesh.filters = [timeFilter]
 
@@ -282,6 +292,7 @@ export const createGame = async (
   world.addChild(sprite)
   dotShader.uniforms.particle = [dimensions.x / 2, dimensions.y / 2]
   dotShader.uniforms.particlesCount = 0
+  dotShader.uniforms.colorStrenght = scenario.shared.colorStrenght
 
   const boundary = new Graphics()
   boundary.lineStyle(2, 0x333333) // Red color
@@ -413,8 +424,10 @@ export const createGame = async (
         return [p.pos.x, p.pos.y, p.vel.x, p.vel.y, ...color]
       }),
     )
+    dotShader.uniforms.colorStrenght = scenario.shared.colorStrenght
 
     timeFilter.uniforms.dt = dt
+    timeFilter.uniforms.tailFade = scenario.shared.tailFade
     timeFilter.uniforms.uCurrentRenderTexture = getCurrentRenderTexture()
     app.renderer.render(rendererWorld, {
       renderTexture: getNextRenderTexture(),

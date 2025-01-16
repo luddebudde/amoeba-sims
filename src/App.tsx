@@ -209,6 +209,10 @@ const parseParticleConfig = object<ParticleType>({
 
 const parseScenario = object<Scenario>({
   particles: array(parseParticleConfig),
+  shared: object({
+    colorStrenght: parseNumber,
+    tailFade: parseNumber,
+  }),
 })
 
 const parseNamedConfig = object<NamedConfig>({
@@ -237,6 +241,14 @@ const createDefaultParticle = (): ParticleType => ({
   springDampingCoeff: 0,
 })
 
+const createDefaultScenario = (): Scenario => ({
+  particles: [createDefaultParticle()],
+  shared: {
+    colorStrenght: 0.1,
+    tailFade: 0.01,
+  },
+})
+
 function App() {
   const [restartKey, setRestartKey] = useState(0)
   const [showChart, setShowChart] = useState(false)
@@ -248,9 +260,7 @@ function App() {
       configs: [],
     })
 
-  const [scenario, setScenario] = useState<Scenario>({
-    particles: [createDefaultParticle()],
-  })
+  const [scenario, setScenario] = useState<Scenario>(createDefaultScenario)
 
   const [currentParticleUid, setCurrentParticleUid] = useState(
     scenario.particles[0].uid,
@@ -272,6 +282,7 @@ function App() {
             (it) => it.uid !== uid,
           )
           return {
+            ...prevScenario,
             particles: [newParticleConfig, ...unaltered],
           }
         })
@@ -450,6 +461,44 @@ function App() {
           config={config}
           setConfig={setConfig(config.uid)}
         />
+
+        <h3>Color Strength</h3>
+        <Input
+          value={scenario.shared.colorStrenght}
+          onChange={(newValue: number) => {
+            setScenario((scenario) => {
+              return {
+                ...scenario,
+                shared: {
+                  ...scenario.shared,
+                  colorStrenght: newValue,
+                },
+              }
+            })
+          }}
+          min={0.0}
+          max={1}
+          step={0.01}
+        />
+
+        <h3>Tail Lenght</h3>
+        <Input
+          value={scenario.shared.tailFade}
+          onChange={(newValue: number) => {
+            setScenario((scenario) => {
+              return {
+                ...scenario,
+                shared: {
+                  ...scenario.shared,
+                  tailFade: newValue,
+                },
+              }
+            })
+          }}
+          min={0.0}
+          max={1}
+          step={0.001}
+        />
       </div>
 
       <div
@@ -499,14 +548,14 @@ type ParticleConfigViewProps = {
 }
 
 const ParticleConfigView = (props: ParticleConfigViewProps) => {
-  const { config, setConfig } = props
+  const { config: particleType, setConfig } = props
 
   return (
     <div>
       <h3>Particle Count</h3>
 
       <Input
-        value={config.particleCount}
+        value={particleType.particleCount}
         onChange={(newValue: number) => {
           setConfig((config) => {
             return {
@@ -523,7 +572,7 @@ const ParticleConfigView = (props: ParticleConfigViewProps) => {
       <h3>r offset</h3>
 
       <Input
-        value={config.rOffset}
+        value={particleType.rOffset}
         onChange={(newValue: number) => {
           setConfig((config) => {
             return {
@@ -539,7 +588,7 @@ const ParticleConfigView = (props: ParticleConfigViewProps) => {
 
       <h3>r scale</h3>
       <Input
-        value={config.rScale}
+        value={particleType.rScale}
         onChange={(newValue: number) => {
           setConfig((config) => {
             return {
@@ -556,7 +605,7 @@ const ParticleConfigView = (props: ParticleConfigViewProps) => {
       <h3>Near distance repulsion</h3>
 
       <Input
-        value={config.k1}
+        value={particleType.k1}
         onChange={(newValue: number) => {
           setConfig((config) => {
             return {
@@ -572,7 +621,7 @@ const ParticleConfigView = (props: ParticleConfigViewProps) => {
 
       <h3>Graviation mass</h3>
       <Input
-        value={config.k2}
+        value={particleType.k2}
         onChange={(newValue: number) => {
           setConfig((config) => {
             return {
@@ -588,7 +637,7 @@ const ParticleConfigView = (props: ParticleConfigViewProps) => {
 
       <h3>Charge</h3>
       <Input
-        value={config.charge}
+        value={particleType.charge}
         onChange={(newValue: number) => {
           setConfig((config) => {
             return {
@@ -613,7 +662,7 @@ force = k1 / rPlus ** 3 + k2 / rPlus ** 2`}
       <h3>Max force</h3>
 
       <Input
-        value={config.maxAbs}
+        value={particleType.maxAbs}
         onChange={(newValue: number) => {
           setConfig((config) => {
             return {
@@ -630,7 +679,7 @@ force = k1 / rPlus ** 3 + k2 / rPlus ** 2`}
       <h3>Air Coefficient</h3>
 
       <Input
-        value={config.airResistanceCoeff}
+        value={particleType.airResistanceCoeff}
         onChange={(newValue: number) => {
           setConfig((config) => {
             return {
@@ -647,7 +696,7 @@ force = k1 / rPlus ** 3 + k2 / rPlus ** 2`}
       <h3>Spring Damping Coefficient</h3>
 
       <Input
-        value={config.springDampingCoeff}
+        value={particleType.springDampingCoeff}
         onChange={(newValue: number) => {
           setConfig((config) => {
             return {
@@ -664,7 +713,7 @@ force = k1 / rPlus ** 3 + k2 / rPlus ** 2`}
       <h3>Particle Radius</h3>
 
       <Input
-        value={config.particleRadius}
+        value={particleType.particleRadius}
         onChange={(newValue: number) => {
           setConfig((config) => {
             return {
@@ -681,7 +730,7 @@ force = k1 / rPlus ** 3 + k2 / rPlus ** 2`}
       <h3>Particle Mass</h3>
 
       <Input
-        value={config.mass}
+        value={particleType.mass}
         onChange={(newValue: number) => {
           setConfig((config) => {
             return {
@@ -697,7 +746,7 @@ force = k1 / rPlus ** 3 + k2 / rPlus ** 2`}
 
       <HexColorPicker
         style={{ padding: 20 }}
-        color={config.color}
+        color={particleType.color}
         onChange={(newValue) => {
           setConfig((config) => {
             return {

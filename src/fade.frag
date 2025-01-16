@@ -31,9 +31,10 @@ const int particle_size = 7;
 uniform float[100 * particle_size] particles;
 
 uniform int particlesCount;
+uniform float colorStrength;
 
 vec2 variance = vec2(30.0, 3.0);
-const float colorStrength = 0.1;
+
 
 mat2 adjugate(mat2 m) {
     return mat2(m[1][1], -m[0][1], -m[1][0], m[0][0]);
