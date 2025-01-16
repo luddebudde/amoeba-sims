@@ -35,31 +35,52 @@ import {
 } from 'pure-parse'
 import { HexColorPicker } from 'react-colorful'
 
-export const Chart: FunctionComponent<{ config: ParticleType }> = (props) => {
-  const { config } = props
-  const otherParticle: Particle = {
+export const Chart = (props: {
+  scenario: Scenario
+  particleType: ParticleType
+}) => {
+  const { scenario, particleType } = props
+  const thisParticle: Particle = {
     pos: { x: 0, y: 0 },
     vel: { x: 0, y: 0 },
-    type: 'dummy-id-1',
+    type: particleType.uid,
   }
   const xs = Array.from({ length: 100 }, (_, i) => i / 5)
-  const data = xs.map((x) => ({
-    x: x,
-    y: forceFromParticle(
-      {
-        pos: { x: x, y: 0 },
-        vel: { x: 0, y: 0 },
-        type: 'dummy-id-2',
-      },
-      otherParticle,
-      // @ts-ignore -- TODO
-      config,
-    ).x,
-  }))
-  const minMax = {
-    min: -0.1,
-    max: 0.1,
-  }
+
+  // {
+  //   x: x,
+  //   y: forceFromParticle(
+  //     {
+  //       pos: { x: x, y: 0 },
+  //       vel: { x: 0, y: 0 },
+  //       type: particleType.uid,
+  //     },
+  //     otherParticle,
+  //     scenario,
+  //   ).x,
+  // }
+  const data = xs.map((x) =>
+    Object.fromEntries([
+      ['x', x],
+      ...scenario.particles.map((otherParticleType, index) => [
+        otherParticleType.uid,
+        -forceFromParticle(
+          thisParticle,
+          {
+            pos: { x: x, y: 0 },
+            vel: { x: 0, y: 0 },
+            type: otherParticleType.uid,
+          },
+          scenario,
+        ).x,
+        ,
+      ]),
+    ]),
+  )
+  // const minMax = {
+  //   min: -0.1,
+  //   max: 0.1,
+  // }
   return (
     <ResponsiveContainer
       width="100%"
@@ -69,23 +90,25 @@ export const Chart: FunctionComponent<{ config: ParticleType }> = (props) => {
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="x" />
         <YAxis
-          dataKey="y"
-          {...minMax}
+        // dataKey={particleType.uid}
+        // {...minMax}
         />
-        <Line
-          type="monotone"
-          dataKey="y"
-          stroke="red"
-          dot={false}
-          isAnimationActive={false}
-        />
+        {scenario.particles.map((particleType) => (
+          <Line
+            type="monotone"
+            dataKey={particleType.uid}
+            stroke={particleType.color}
+            dot={false}
+            isAnimationActive={false}
+          />
+        ))}
         <ReferenceLine
           y={0}
           label="Max"
           stroke="black"
         />
         <ReferenceLine
-          x={config.particleRadius}
+          x={particleType.particleRadius}
           label="R"
           stroke="blue"
           strokeDasharray="3 3"
@@ -326,7 +349,10 @@ function App() {
               borderLeft: '1px solid lightgray',
             }}
           >
-            {/* <Chart config={config} /> */}
+            <Chart
+              scenario={scenario}
+              particleType={config}
+            />
           </div>
         )}
 
@@ -555,7 +581,7 @@ const ParticleConfigView = (props: ParticleConfigViewProps) => {
             }
           })
         }}
-        min={-10}
+        min={0}
         max={10}
         step={0.01}
       />

@@ -126,7 +126,7 @@ void main() {
         vec2 rQ = covInvTimesR;
         float B_abs = abs(cross(vec3(vel, 0.0), vec3(covInv * rNorm, 0.0)) * permeability / ( 4.0 * pi * dot(rQ, rQ))).z;
 
-        totalWeight += vec3(E_abs, 0.0, B_abs);
+        totalWeight += vec3(0.0, 0.0, B_abs) + E_abs * color * 0.01;
 
     }
     vec3 color = colorStrength * totalWeight;

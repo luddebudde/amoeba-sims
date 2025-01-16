@@ -105,7 +105,7 @@ export const forceFromParticle = (
   // If the particles are near each other, repel (1/dist**3)
   const nearRepulsionF = mult(r, thisType.k1 / (rNorm2 * rNorm2))
 
-  const gravityF = gravityForce(thisType.mass, gravityField(G, r, thisType.k2))
+  const gravityF = gravityForce(thisType.mass, gravityField(-G, r, thisType.k2))
 
   // If particles are overlapping, simulate loss of kinetic energy
   const dampingF =
