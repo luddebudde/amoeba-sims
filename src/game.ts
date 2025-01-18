@@ -57,7 +57,7 @@ export type ParticleType = {
 }
 
 type SharedConfig = {
-  colorStrenght: number
+  colorStrength: number
   tailFade: number
 }
 
@@ -274,7 +274,7 @@ export const createGame = async (
     dt: 0,
     particlesCount: 0,
     particles: new Array(maxParticles * particleUniformSize).fill(0),
-    colorStrength: scenario.shared.colorStrenght,
+    colorStrength: scenario.shared.colorStrength,
   })
 
   const particlesMesh = new PIXI.Mesh(geometry, dotShader)
@@ -292,7 +292,7 @@ export const createGame = async (
   world.addChild(sprite)
   dotShader.uniforms.particle = [dimensions.x / 2, dimensions.y / 2]
   dotShader.uniforms.particlesCount = 0
-  dotShader.uniforms.colorStrenght = scenario.shared.colorStrenght
+  dotShader.uniforms.colorStrength = scenario.shared.colorStrength
 
   const boundary = new Graphics()
   boundary.lineStyle(2, 0x333333) // Red color
@@ -424,7 +424,7 @@ export const createGame = async (
         return [p.pos.x, p.pos.y, p.vel.x, p.vel.y, ...color]
       }),
     )
-    dotShader.uniforms.colorStrenght = scenario.shared.colorStrenght
+    dotShader.uniforms.colorStrength = scenario.shared.colorStrength
 
     timeFilter.uniforms.dt = dt
     timeFilter.uniforms.tailFade = scenario.shared.tailFade

@@ -13,8 +13,8 @@ void main(void) {
     vec3 previousFrame = texture2D(uCurrentRenderTexture, vTextureCoord).rgb;
     vec3 currentColor = texture2D(uSampler, vTextureCoord).rgb;
 
-    float a = tailFade * exp(-0.01 * dt);
-    vec3 color = a * previousFrame + 20.0 * (1.0 - a) * currentColor  * radius;
+    float a = exp(-0.01 / tailFade * dt );
+    vec3 color = a * previousFrame + (1.0 - 0.0) * currentColor;
     gl_FragColor = vec4(color, 1.0);
 }
 

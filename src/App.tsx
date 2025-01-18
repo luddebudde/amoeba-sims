@@ -210,7 +210,7 @@ const parseParticleConfig = object<ParticleType>({
 const parseScenario = object<Scenario>({
   particles: array(parseParticleConfig),
   shared: object({
-    colorStrenght: parseNumber,
+    colorStrength: parseNumber,
     tailFade: parseNumber,
   }),
 })
@@ -244,7 +244,7 @@ const createDefaultParticle = (): ParticleType => ({
 const createDefaultScenario = (): Scenario => ({
   particles: [createDefaultParticle()],
   shared: {
-    colorStrenght: 0.1,
+    colorStrength: 0.1,
     tailFade: 0.01,
   },
 })
@@ -310,7 +310,7 @@ function App() {
 
   useEffect(() => {
     game.current?.setScenario(scenario)
-  }, [config])
+  }, [scenario])
 
   const configStorageResult = parseConfigStorage(configStorageUnkown)
 
@@ -464,14 +464,14 @@ function App() {
 
         <h3>Color Strength</h3>
         <Input
-          value={scenario.shared.colorStrenght}
+          value={scenario.shared.colorStrength}
           onChange={(newValue: number) => {
             setScenario((scenario) => {
               return {
                 ...scenario,
                 shared: {
                   ...scenario.shared,
-                  colorStrenght: newValue,
+                  colorStrength: newValue,
                 },
               }
             })
