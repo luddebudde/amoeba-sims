@@ -1,12 +1,5 @@
 import './App.css'
-import {
-  Dispatch,
-  FunctionComponent,
-  SetStateAction,
-  useEffect,
-  useRef,
-  useState,
-} from 'react'
+import { Dispatch, SetStateAction, useEffect, useRef, useState } from 'react'
 import {
   ParticleType,
   createGame,
@@ -62,7 +55,7 @@ export const Chart = (props: {
   const data = xs.map((x) =>
     Object.fromEntries([
       ['x', x],
-      ...scenario.particles.map((otherParticleType, index) => [
+      ...scenario.particles.map((otherParticleType) => [
         otherParticleType.uid,
         -forceFromParticle(
           thisParticle,
@@ -73,7 +66,6 @@ export const Chart = (props: {
           },
           scenario,
         ).x,
-        ,
       ]),
     ]),
   )
@@ -212,6 +204,9 @@ const parseScenario = object<Scenario>({
   shared: object({
     colorStrength: parseNumber,
     tailFade: parseNumber,
+    gravitationalConstant: parseNumber,
+    permettivityInverse: parseNumber,
+    permeability: parseNumber,
   }),
 })
 
@@ -244,8 +239,11 @@ const createDefaultParticle = (): ParticleType => ({
 const createDefaultScenario = (): Scenario => ({
   particles: [createDefaultParticle()],
   shared: {
-    colorStrength: 0.1,
+    colorStrength: 0.01,
     tailFade: 0.01,
+    gravitationalConstant: 1,
+    permettivityInverse: 100,
+    permeability: 0,
   },
 })
 
@@ -477,7 +475,7 @@ function App() {
             })
           }}
           min={0.0}
-          max={1}
+          max={0.1}
           step={0.01}
         />
 
@@ -498,6 +496,63 @@ function App() {
           min={0.0}
           max={1}
           step={0.001}
+        />
+
+        <h3>G force</h3>
+        <Input
+          value={scenario.shared.gravitationalConstant}
+          onChange={(newValue: number) => {
+            setScenario((scenario) => {
+              return {
+                ...scenario,
+                shared: {
+                  ...scenario.shared,
+                  gravitationalConstant: newValue,
+                },
+              }
+            })
+          }}
+          min={0.0}
+          max={10}
+          step={0.001}
+        />
+
+        <h3>Inverted Permettivity (electric)</h3>
+        <Input
+          value={scenario.shared.permettivityInverse}
+          onChange={(newValue: number) => {
+            setScenario((scenario) => {
+              return {
+                ...scenario,
+                shared: {
+                  ...scenario.shared,
+                  permettivityInverse: newValue,
+                },
+              }
+            })
+          }}
+          min={0.0}
+          max={500}
+          step={1}
+        />
+
+        <h3>Permeability (magnetic)</h3>
+        <Input
+          value={scenario.shared.permeability}
+          onChange={(newValue: number) => {
+            setScenario((scenario) => {
+              return {
+                ...scenario,
+                shared: {
+                  ...scenario.shared,
+                  permeability: newValue,
+                },
+              }
+            })
+          }}
+          min={0.0}
+          max={500}
+          step={0.1}
         />
       </div>
 
@@ -597,7 +652,7 @@ const ParticleConfigView = (props: ParticleConfigViewProps) => {
             }
           })
         }}
-        min={0}
+        min={0.001}
         max={10}
         step={0.001}
       />
@@ -688,9 +743,9 @@ force = k1 / rPlus ** 3 + k2 / rPlus ** 2`}
             }
           })
         }}
-        min={-10}
-        max={10}
-        step={0.01}
+        min={0}
+        max={1}
+        step={0.001}
       />
 
       <h3>Spring Damping Coefficient</h3>

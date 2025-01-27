@@ -59,6 +59,9 @@ export type ParticleType = {
 type SharedConfig = {
   colorStrength: number
   tailFade: number
+  gravitationalConstant: number
+  permettivityInverse: number
+  permeability: number
 }
 
 export type Scenario = {
@@ -85,8 +88,6 @@ const findParticleType = (scenario: Scenario, uid: string) =>
   scenario.particles.find((it) => it.uid === uid)
 
 // Physical constants: TODO parameterize and add controls to UI
-// Strength of gravity
-const G = 1.0
 // Smaller -> stronger electric field
 const permittivity = 0.01
 // Larger -> stronger magnetic field
@@ -105,13 +106,16 @@ export const forceFromParticle = (
     return origin
   }
 
-  const r = sub(thisParticle.pos, otherParticle.pos)
+  const r = mult(sub(thisParticle.pos, otherParticle.pos), thisType.rScale)
   const rNorm2 = lengthSq(r)
 
   // If the particles are near each other, repel (1/dist**3)
   const nearRepulsionF = mult(r, thisType.k1 / (rNorm2 * rNorm2))
 
-  const gravityF = gravityForce(thisType.mass, gravityField(-G, r, thisType.k2))
+  const gravityF = gravityForce(
+    thisType.mass,
+    gravityField(-scenario.shared.gravitationalConstant, r, thisType.k2),
+  )
 
   // If particles are overlapping, simulate loss of kinetic energy
   const dampingF =
@@ -123,8 +127,8 @@ export const forceFromParticle = (
     thisType.charge,
     thisParticle.vel,
     ...emField(
-      permittivity,
-      permeability,
+      1 / scenario.shared.permettivityInverse,
+      scenario.shared.permeability,
       r,
       otherType.charge,
       otherParticle.vel,

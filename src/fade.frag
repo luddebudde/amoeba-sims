@@ -113,21 +113,23 @@ void main() {
         vec2 covInvTimesR = covInv * r;
         float r2Q = dot(r, covInvTimesR);
 
+        // Unphysical, but nice for drawing
+        // TODO add radius here
         float normalDistributionWeight = exp(-0.5 * r2Q) / (2.0 * pi * sqrt(covDet));
 
         float permittivity = 0.07;
         float E_abs = 1.0 / (r2Q * permittivity * sqrt(covDet));
 
-//        totalWeight += normalDistributionWeight * color;
-
-//        float permeability = 0.0;
         float permeability = 2e2;
         // The transformed r (non-squared)
         // I expected to have to multiply the sqaure root of the covariance, but this seems to work better
         vec2 rQ = covInvTimesR;
         float B_abs = abs(cross(vec3(vel, 0.0), vec3(covInv * rNorm, 0.0)) * permeability / ( 4.0 * pi * dot(rQ, rQ))).z;
 
-        totalWeight += vec3(0.0, 0.0, B_abs) + E_abs * color * 0.01;
+        float normDist_weight = 0.0;
+        float B_weight = 0.01;
+        float E_weight = 0.01;
+        totalWeight += normDist_weight * normalDistributionWeight * color + B_weight * B_abs * color + E_weight * E_abs * color;
 
     }
     vec3 color = colorStrength * totalWeight;

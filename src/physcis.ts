@@ -74,8 +74,8 @@ export const emField = (
   v: Vec,
 ): [Vec, number] => {
   const len = length(r)
-  const k = charge / (len * len * len * pi4)
-  return [mult(r, k / permittivity), permeability * crossPlane(v, r) * k]
+  const k = charge / (pi4 * len * len * len)
+  return [mult(r, k / permittivity), k * permeability * crossPlane(v, r)]
 }
 
 export const emForce = (charge: number, v: Vec, e: Vec, b: number): Vec =>
