@@ -222,6 +222,20 @@ export const createGame = async (
   let particlesT1 = structuredClone(particlesT0)
   let particlesTHalf = structuredClone(particlesT0)
 
+  const particleFloatBuffer = new Float32Array(512 * 512 * 4)
+
+  const particleBaseTexture = PIXI.BaseTexture.fromBuffer(
+    particleFloatBuffer,
+    512,
+    512,
+    {
+      format: PIXI.FORMATS.RGBA,
+      type: PIXI.TYPES.FLOAT,
+    },
+  )
+
+  const particleTexture = new PIXI.Texture(particleBaseTexture)
+
   const renderTextureOptions: PIXI.IBaseTextureOptions = {
     width: dimensions.x,
     height: dimensions.y,
@@ -281,6 +295,7 @@ export const createGame = async (
     colorStrength: scenario.shared.colorStrength,
     permettivityInverse: scenario.shared.permettivityInverse,
     permeability: scenario.shared.permeability,
+    uParticleTexture: particleTexture,
   })
 
   const particlesMesh = new PIXI.Mesh(geometry, dotShader)
@@ -419,17 +434,24 @@ export const createGame = async (
       particlesT1.length,
       maxParticles,
     )
-    dotShader.uniforms.particles = new Float32Array(
-      particlesT1.flatMap((p) => {
-        const particleType = findParticleType(scenario, p.type)
-        const color =
-          particleType === undefined
-            ? [0, 1, 1]
-            : (hexToRgbArray(particleType.color) ?? [1, 0, 0])
 
-        return [p.pos.x, p.pos.y, p.vel.x, p.vel.y, ...color]
-      }),
-    )
+    const particlesData = particlesT1.flatMap((p) => {
+      const particleType = findParticleType(scenario, p.type)
+      const color =
+        particleType === undefined
+          ? [0, 1, 1]
+          : (hexToRgbArray(particleType.color) ?? [1, 0, 0])
+
+      return [p.pos.x, p.pos.y, p.vel.x, p.vel.y, ...color, 0.0]
+    })
+
+    dotShader.uniforms.particles = new Float32Array(particlesData)
+    for (let i = 0; i < particleFloatBuffer.length; i++) {
+      particleFloatBuffer[i] = particlesData[i]
+    }
+
+    particleBaseTexture.update()
+
     dotShader.uniforms.colorStrength = scenario.shared.colorStrength
     dotShader.uniforms.permettivityInverse = scenario.shared.permettivityInverse
     dotShader.uniforms.permeability = scenario.shared.permeability

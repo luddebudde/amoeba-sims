@@ -10,7 +10,7 @@ out vec4 fragColor;
 
 // TODO uniform
 const vec2 resolution = vec2(512.0, 512.0);
-const float pi = 3.14159265359;
+const float pi = 3.141592653589795032;
 
 // struct Particle {
 //     vec2 pos;
@@ -26,7 +26,7 @@ const int particle_vy_offset = 3;
 const int particle_color_r_offset = 4;
 const int particle_color_g_offset = 5;
 const int particle_color_b_offset = 6;
-const int particle_size = 7;
+const int particle_size = 8;
 
 uniform float[100 * particle_size] particles;
 
@@ -34,6 +34,7 @@ uniform int particlesCount;
 uniform float colorStrength;
 uniform float permettivityInverse;
 uniform float permeability;
+uniform sampler2D uParticleTexture;
 
 vec2 variance = vec2(30.0, 3.0);
 
@@ -49,6 +50,24 @@ mat2 sqrtDiagonal(mat2 D) {
     );
 }
 
+
+vec2 getUV(float pixelIndex, float texWidth, float texHeight) {
+    float x = mod(pixelIndex, texWidth);
+    float y = floor(pixelIndex / texWidth);
+    return vec2((x + 0.5) / texWidth, (y + 0.5) / texHeight);
+}
+
+vec4 getParticleDataA(int particleIndex) {
+    float pixelIndex = float(particleIndex) * 2.0;
+    return texture(uParticleTexture, getUV(pixelIndex, 512.0, 512.0));
+}
+
+vec4 getParticleDataB(int particleIndex) {
+    float pixelIndex = float(particleIndex) * 2.0 + 1.0;
+    return texture(uParticleTexture, getUV(pixelIndex, 512.0, 512.0));
+}
+
+
 void main() {
     float sigmaBase = 1.0;
 
@@ -63,13 +82,13 @@ void main() {
     vec3 totalWeight = vec3(0.0, 0.0, 0.0);
     for(int i = 0; i < particlesCount; i++) {
         int offset = i * particle_size;
-        vec2 particlePos = vec2(particles[offset + particle_rx_offset], particles[offset + particle_ry_offset]);
-        vec2 vel = vec2(particles[offset + particle_vx_offset], particles[offset + particle_vy_offset]);
-        vec3 color = vec3(
-            particles[offset + particle_color_r_offset],
-            particles[offset + particle_color_g_offset],
-            particles[offset + particle_color_b_offset]
-        );
+        // vec2 particlePos = vec2(particles[offset + particle_rx_offset], particles[offset + particle_ry_offset]);
+        vec4 dataA = getParticleDataA(i);
+        vec4 dataB = getParticleDataB(i);
+        
+        vec2 particlePos = dataA.rg;
+        vec2 vel = dataA.ba;
+        vec3 color = dataB.rgb;
 
         vec2 dr = dt * vel;
         float drAbs = length(dr);
