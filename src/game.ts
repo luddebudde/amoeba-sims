@@ -279,6 +279,8 @@ export const createGame = async (
     particlesCount: 0,
     particles: new Array(maxParticles * particleUniformSize).fill(0),
     colorStrength: scenario.shared.colorStrength,
+    permettivityInverse: scenario.shared.permettivityInverse,
+    permeability: scenario.shared.permeability,
   })
 
   const particlesMesh = new PIXI.Mesh(geometry, dotShader)
@@ -294,9 +296,9 @@ export const createGame = async (
   rendererWorld.addChild(particlesMesh)
 
   world.addChild(sprite)
-  dotShader.uniforms.particle = [dimensions.x / 2, dimensions.y / 2]
-  dotShader.uniforms.particlesCount = 0
-  dotShader.uniforms.colorStrength = scenario.shared.colorStrength
+  // dotShader.uniforms.particle = [dimensions.x / 2, dimensions.y / 2]
+  // dotShader.uniforms.particlesCount = 0
+  // dotShader.uniforms.colorStrength = scenario.shared.colorStrength
 
   const boundary = new Graphics()
   boundary.lineStyle(2, 0x333333) // Red color
@@ -429,6 +431,8 @@ export const createGame = async (
       }),
     )
     dotShader.uniforms.colorStrength = scenario.shared.colorStrength
+    dotShader.uniforms.permettivityInverse = scenario.shared.permettivityInverse
+    dotShader.uniforms.permeability = scenario.shared.permeability
 
     timeFilter.uniforms.dt = dt
     timeFilter.uniforms.tailFade = scenario.shared.tailFade

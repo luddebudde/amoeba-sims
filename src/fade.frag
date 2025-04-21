@@ -32,6 +32,8 @@ uniform float[100 * particle_size] particles;
 
 uniform int particlesCount;
 uniform float colorStrength;
+uniform float permettivityInverse;
+uniform float permeability;
 
 vec2 variance = vec2(30.0, 3.0);
 
@@ -117,17 +119,15 @@ void main() {
         // TODO add radius here
         float normalDistributionWeight = exp(-0.5 * r2Q) / (2.0 * pi * sqrt(covDet));
 
-        float permittivity = 0.07;
-        float E_abs = 1.0 / (r2Q * permittivity * sqrt(covDet));
+        float E_abs = permettivityInverse / (r2Q * sqrt(covDet));
 
-        float permeability = 2e2;
         // The transformed r (non-squared)
         // I expected to have to multiply the sqaure root of the covariance, but this seems to work better
         vec2 rQ = covInvTimesR;
         float B_abs = abs(cross(vec3(vel, 0.0), vec3(covInv * rNorm, 0.0)) * permeability / ( 4.0 * pi * dot(rQ, rQ))).z;
 
         float normDist_weight = 0.0;
-        float B_weight = 0.01;
+        float B_weight = 0.03;
         float E_weight = 0.01;
         totalWeight += normDist_weight * normalDistributionWeight * color + B_weight * B_abs * color + E_weight * E_abs * color;
 
