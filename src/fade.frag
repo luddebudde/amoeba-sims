@@ -28,8 +28,6 @@ const int particle_color_g_offset = 5;
 const int particle_color_b_offset = 6;
 const int particle_size = 8;
 
-uniform float[100 * particle_size] particles;
-
 uniform int particlesCount;
 uniform float colorStrength;
 uniform float permettivityInverse;
@@ -82,7 +80,6 @@ void main() {
     vec3 totalWeight = vec3(0.0, 0.0, 0.0);
     for(int i = 0; i < particlesCount; i++) {
         int offset = i * particle_size;
-        // vec2 particlePos = vec2(particles[offset + particle_rx_offset], particles[offset + particle_ry_offset]);
         vec4 dataA = getParticleDataA(i);
         vec4 dataB = getParticleDataB(i);
         

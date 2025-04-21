@@ -291,7 +291,6 @@ export const createGame = async (
   const dotShader = PIXI.Shader.from(fadeVertex, fadeFragment, {
     dt: 0,
     particlesCount: 0,
-    particles: new Array(maxParticles * particleUniformSize).fill(0),
     colorStrength: scenario.shared.colorStrength,
     permettivityInverse: scenario.shared.permettivityInverse,
     permeability: scenario.shared.permeability,
@@ -445,7 +444,6 @@ export const createGame = async (
       return [p.pos.x, p.pos.y, p.vel.x, p.vel.y, ...color, 0.0]
     })
 
-    dotShader.uniforms.particles = new Float32Array(particlesData)
     for (let i = 0; i < particleFloatBuffer.length; i++) {
       particleFloatBuffer[i] = particlesData[i]
     }
