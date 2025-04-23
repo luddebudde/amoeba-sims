@@ -207,6 +207,8 @@ const parseScenario = object<Scenario>({
     gravitationalConstant: parseNumber,
     permettivityInverse: parseNumber,
     permeability: parseNumber,
+    maxForceDist: withDefault(parseNumber, 1000),
+    timeScale: withDefault(parseNumber, 1),
   }),
 })
 
@@ -244,6 +246,8 @@ const createDefaultScenario = (): Scenario => ({
     gravitationalConstant: 1,
     permettivityInverse: 100,
     permeability: 0,
+    maxForceDist: 10000,
+    timeScale: 1,
   },
 })
 
@@ -552,6 +556,46 @@ function App() {
           }}
           min={0.0}
           max={500}
+          step={0.1}
+        />
+
+        <h3>Max force distance </h3>
+        <p style={{ margin: 0 }}>For optimization</p>
+        <Input
+          value={scenario.shared.maxForceDist}
+          onChange={(newValue: number) => {
+            setScenario((scenario) => {
+              return {
+                ...scenario,
+                shared: {
+                  ...scenario.shared,
+                  maxForceDist: newValue,
+                },
+              }
+            })
+          }}
+          min={0.0}
+          max={1000}
+          step={1}
+        />
+
+        <h3>Time Speed</h3>
+        <p style={{ margin: 0 }}>Slow/speed up</p>
+        <Input
+          value={scenario.shared.timeScale}
+          onChange={(newValue: number) => {
+            setScenario((scenario) => {
+              return {
+                ...scenario,
+                shared: {
+                  ...scenario.shared,
+                  timeScale: newValue,
+                },
+              }
+            })
+          }}
+          min={-1}
+          max={1}
           step={0.1}
         />
       </div>

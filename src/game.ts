@@ -62,6 +62,8 @@ type SharedConfig = {
   gravitationalConstant: number
   permettivityInverse: number
   permeability: number
+  maxForceDist: number
+  timeScale: number
 }
 
 export type Scenario = {
@@ -108,6 +110,10 @@ export const forceFromParticle = (
 
   const r = mult(sub(thisParticle.pos, otherParticle.pos), thisType.rScale)
   const rNorm2 = lengthSq(r)
+
+  if (rNorm2 > scenario.shared.maxForceDist * scenario.shared.maxForceDist) {
+    return origin
+  }
 
   // If the particles are near each other, repel (1/dist**3)
   const nearRepulsionF = mult(r, thisType.k1 / (rNorm2 * rNorm2))
@@ -340,7 +346,7 @@ export const createGame = async (
 
   // app.ticker.maxFPS = 5
   app.ticker.add((time) => {
-    const dt = time
+    const dt = time * scenario.shared.timeScale
     const timeNow = performance.now()
     const dt2 = timeNow - timePrevious
     timePrevious = timeNow
@@ -480,13 +486,3 @@ export const createGame = async (
 }
 
 const maxParticles = 1024
-
-// const particlesBuffer = new PIXI.Buffer({
-//   data: new Float32Array(new Array(maxParticles * 2).fill(0)),
-//   usage: PIXI.BufferUsage.UNIFORM,
-// })
-
-// const particleResource = new BufferResource({
-//   buffer: particlesBuffer,
-//   size: maxParticles * 2,
-// })
