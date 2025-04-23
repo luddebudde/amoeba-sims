@@ -7,6 +7,7 @@ import {
   lengthSq,
   add,
   normalise,
+  origin,
 } from './vec.ts'
 
 const pi4 = 4 * Math.PI
@@ -73,13 +74,18 @@ export const emField = (
   charge: number,
   v: Vec,
 ): [Vec, number] => {
+  if (charge === 0) {
+    return [origin, 0]
+  }
   const len = length(r)
   const k = charge / (pi4 * len * len * len)
   return [mult(r, k / permittivity), k * permeability * crossPlane(v, r)]
 }
 
 export const emForce = (charge: number, v: Vec, e: Vec, b: number): Vec =>
-  add(electricForce(charge, e), magneticForce(charge, v, b))
+  charge === 0
+    ? origin
+    : add(electricForce(charge, e), magneticForce(charge, v, b))
 
 export const clipForce = (force: Vec, max: number): Vec => {
   const len2 = lengthSq(force)

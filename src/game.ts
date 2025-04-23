@@ -352,15 +352,12 @@ export const createGame = async (
     timePrevious = timeNow
     fps = 0.95 * fps + (0.05 * 1000) / dt2
 
-    // TODO
-    // kineticEnergy =
-    //   0.9 * kineticEnergy +
-    //   0.01 *
-    //     particlesT0.reduce((acc, particle) => {
-    //       return acc + 0.5 * scenario.mass * lengthSq(particle.vel)
-    //     }, 0)
+    kineticEnergy = particlesT0.reduce((acc, particle) => {
+      const mass = findParticleType(scenario, particle.type)?.mass ?? 0
+      return acc + 0.5 * mass * lengthSq(particle.vel)
+    }, 0)
 
-    energyText.text = `Kinetic Energy: ${kineticEnergy.toFixed(2)} J`
+    energyText.text = `Kinetic Energy: ${kineticEnergy.toExponential(2)} J`
     fpsText.text = `${fps.toFixed(0)} fps`
 
     particlesT0.forEach((particleT0, index) => {
