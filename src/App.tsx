@@ -1,5 +1,12 @@
 import './App.css'
-import { Dispatch, SetStateAction, useEffect, useRef, useState } from 'react'
+import {
+  Dispatch,
+  MouseEventHandler,
+  SetStateAction,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 import {
   ParticleType,
   createGame,
@@ -289,7 +296,7 @@ function App() {
   const canvasEl = useRef<HTMLDivElement>(null)
   const [mousePos, setMousePos] = useState<Vec>(origin)
 
-  const handleMouseMove = (e: MouseEvent) => {
+  const handleMouseMove: MouseEventHandler = (e) => {
     if (!canvasEl.current) {
       return
     }

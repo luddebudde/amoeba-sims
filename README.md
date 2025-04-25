@@ -3,7 +3,6 @@
 ## TODO
 
 - [x] Add More Particle types
-- Better Visuals
-- [ ] Improved Slider Componoent
-- [ ] Higher particle count
-- [ ] More uniforms in shaders
+- [x] Better Visuals
+- [x] Improved Slider Componoent
+- [x] Higher particle count

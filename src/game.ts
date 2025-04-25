@@ -93,12 +93,6 @@ const findParticleType = (scenario: Scenario, uid: string) => {
   )
 }
 
-// Physical constants: TODO parameterize and add controls to UI
-// Smaller -> stronger electric field
-const permittivity = 0.01
-// Larger -> stronger magnetic field
-const permeability = 10
-
 export const forceFromParticle = (
   thisParticle: Particle,
   otherParticle: Particle,
