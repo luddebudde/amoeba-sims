@@ -27,6 +27,7 @@ import {
   withDefault,
 } from 'pure-parse'
 import { HexColorPicker } from 'react-colorful'
+import { origin, Vec } from './vec.ts'
 
 export const Chart = (props: {
   scenario: Scenario
@@ -181,6 +182,52 @@ type ConfigStorage = {
   configs: NamedConfig[]
 }
 
+const createDefaultParticle = (): ParticleType => ({
+  uid: v4(),
+  color: '#ffffff',
+  particleCount: defaultParticleCount,
+  airResistanceCoeff: 0,
+  k1: 0,
+  k2: 0,
+  charge: 0,
+  maxAbs: 1,
+  mass: 1,
+  particleRadius: 5,
+  rOffset: 0,
+  rScale: 1,
+  springDampingCoeff: 0,
+})
+
+const createDefaultMouseParticle = (): ParticleType => ({
+  uid: v4(),
+  color: '#ffffff',
+  particleCount: defaultParticleCount,
+  airResistanceCoeff: 0,
+  k1: 0,
+  k2: 100,
+  charge: 0,
+  maxAbs: 1,
+  mass: 1,
+  particleRadius: 5,
+  rOffset: 0,
+  rScale: 1,
+  springDampingCoeff: 0,
+})
+
+const createDefaultScenario = (): Scenario => ({
+  particles: [createDefaultParticle()],
+  mouseParticle: createDefaultMouseParticle(),
+  shared: {
+    colorStrength: 0.01,
+    tailFade: 0.01,
+    gravitationalConstant: 1,
+    permettivityInverse: 100,
+    permeability: 0,
+    maxForceDist: 10000,
+    timeScale: 1,
+  },
+})
+
 const defaultParticleCount = 100
 
 const parseParticleConfig = object<ParticleType>({
@@ -201,6 +248,7 @@ const parseParticleConfig = object<ParticleType>({
 
 const parseScenario = object<Scenario>({
   particles: array(parseParticleConfig),
+  mouseParticle: withDefault(parseParticleConfig, createDefaultMouseParticle()),
   shared: object({
     colorStrength: parseNumber,
     tailFade: parseNumber,
@@ -221,36 +269,6 @@ const parseNamedConfig = object<NamedConfig>({
 const parseConfigStorage = object<ConfigStorage>({
   configs: array(parseNamedConfig),
 })
-
-const createDefaultParticle = (): ParticleType => ({
-  uid: v4(),
-  color: '#ffffff',
-  particleCount: defaultParticleCount,
-  airResistanceCoeff: 0,
-  k1: 0,
-  k2: 0,
-  charge: 0,
-  maxAbs: 1,
-  mass: 1,
-  particleRadius: 5,
-  rOffset: 0,
-  rScale: 1,
-  springDampingCoeff: 0,
-})
-
-const createDefaultScenario = (): Scenario => ({
-  particles: [createDefaultParticle()],
-  shared: {
-    colorStrength: 0.01,
-    tailFade: 0.01,
-    gravitationalConstant: 1,
-    permettivityInverse: 100,
-    permeability: 0,
-    maxForceDist: 10000,
-    timeScale: 1,
-  },
-})
-
 function App() {
   const [restartKey, setRestartKey] = useState(0)
   const [showChart, setShowChart] = useState(false)
@@ -268,18 +286,42 @@ function App() {
     scenario.particles[0].uid,
   )
 
-  const config =
-    scenario.particles.find((it) => it.uid === currentParticleUid) ??
-    scenario.particles[0]
+  const canvasEl = useRef<HTMLDivElement>(null)
+  const [mousePos, setMousePos] = useState<Vec>(origin)
 
-  const setConfig =
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!canvasEl.current) {
+      return
+    }
+    const rect = canvasEl.current.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+
+    setMousePos({
+      x: x - rect.width / 2,
+      y: y - rect.height / 2,
+    })
+  }
+
+  const currentParticle =
+    scenario.particles.find((it) => it.uid === currentParticleUid) ??
+    scenario.mouseParticle
+
+  const setParticleType =
     (uid: string): Dispatch<SetStateAction<ParticleType>> =>
     (getNewState) => {
       if (typeof getNewState === 'function') {
         setScenario((prevScenario) => {
-          const newParticleConfig = getNewState(
-            prevScenario.particles.find((it) => it.uid === uid)!,
+          const particleType = prevScenario.particles.find(
+            (it) => it.uid === uid,
           )
+          if (!particleType) {
+            return {
+              ...prevScenario,
+              mouseParticle: getNewState(scenario.mouseParticle),
+            }
+          }
+          const newParticleConfig = getNewState(particleType)
           const unaltered = prevScenario.particles.filter(
             (it) => it.uid !== uid,
           )
@@ -293,12 +335,10 @@ function App() {
       }
     }
 
-  const rightEl = useRef<HTMLDivElement>(null)
-
   useAsyncEffect(
     () =>
-      rightEl.current
-        ? createGame(rightEl.current, scenario)
+      canvasEl.current
+        ? createGame(canvasEl.current, scenario)
         : Promise.resolve(undefined),
     (createdGame) => {
       game.current = createdGame
@@ -313,6 +353,10 @@ function App() {
   useEffect(() => {
     game.current?.setScenario(scenario)
   }, [scenario])
+
+  useEffect(() => {
+    game.current?.setMousePos(mousePos)
+  }, [mousePos])
 
   const configStorageResult = parseConfigStorage(configStorageUnkown)
 
@@ -364,7 +408,7 @@ function App() {
           >
             <Chart
               scenario={scenario}
-              particleType={config}
+              particleType={currentParticle}
             />
           </div>
         )}
@@ -434,34 +478,28 @@ function App() {
           </div>
         </div>
         <div style={{ display: 'flex', overflowX: 'auto' }}>
+          <ParticleButton
+            color={scenario.mouseParticle.color}
+            enabled={currentParticle.uid === scenario.mouseParticle.uid}
+            onClick={() => {
+              setCurrentParticleUid(scenario.mouseParticle.uid)
+            }}
+          ></ParticleButton>
+
           {scenario.particles.map((particleConfig) => (
-            <button
-              style={{
-                backgroundColor:
-                  config.uid === particleConfig.uid ? 'lightgrey' : undefined,
-              }}
+            <ParticleButton
+              color={particleConfig.color}
+              enabled={currentParticle.uid === particleConfig.uid}
               onClick={() => {
                 setCurrentParticleUid(particleConfig.uid)
               }}
-            >
-              <div
-                style={{
-                  width: 25,
-                  height: 25,
-                  background: particleConfig.color,
-                  borderRadius: 5,
-                  borderStyle: 'solid',
-                  borderColor: 'black',
-                  borderWidth: 2,
-                }}
-              ></div>
-            </button>
+            ></ParticleButton>
           ))}
           <button onClick={handelAddNewParticle}>+Particle</button>
         </div>
         <ParticleConfigView
-          config={config}
-          setConfig={setConfig(config.uid)}
+          config={currentParticle}
+          setConfig={setParticleType(currentParticle.uid)}
         />
 
         <h3>Color Strength</h3>
@@ -602,7 +640,8 @@ function App() {
 
       <div
         className="right"
-        ref={rightEl}
+        onMouseMove={handleMouseMove}
+        ref={canvasEl}
       ></div>
     </div>
   )
@@ -638,6 +677,37 @@ const Input = (props: {
         }}
       />
     </div>
+  )
+}
+
+type ParticleButtonProps = {
+  color: string
+  enabled: boolean
+  onClick: () => void
+}
+
+const ParticleButton = (props: ParticleButtonProps) => {
+  const { color, enabled, onClick } = props
+
+  return (
+    <button
+      style={{
+        backgroundColor: enabled ? 'lightgrey' : undefined,
+      }}
+      onClick={onClick}
+    >
+      <div
+        style={{
+          width: 25,
+          height: 25,
+          background: color,
+          borderRadius: 5,
+          borderStyle: 'solid',
+          borderColor: 'black',
+          borderWidth: 2,
+        }}
+      ></div>
+    </button>
   )
 }
 
@@ -788,7 +858,7 @@ force = k1 / rPlus ** 3 + k2 / rPlus ** 2`}
           })
         }}
         min={0}
-        max={1}
+        max={0.1}
         step={0.001}
       />
 

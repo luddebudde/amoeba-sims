@@ -86,6 +86,7 @@ void main() {
         vec2 particlePos = dataA.rg;
         vec2 vel = dataA.ba;
         vec3 color = dataB.rgb;
+        float particleRadius = dataB[3];
 
         vec2 dr = dt * vel;
         float drAbs = length(dr);
@@ -98,7 +99,7 @@ void main() {
             // The eigenvalues represent the strech in 1) the moving direction and 2) the orthogonal direction
             mat2 cov_stretched = mat2(
                 // The variance in the moving direction is stretched
-                sigmaBase * (1.0 + 2.0 * drAbs), 0.0,
+                sigmaBase, 0.0,
                 // The variance orthogonally to the moving direction
                 0.0, sigmaBase
             );
@@ -128,12 +129,13 @@ void main() {
 
         // rT * covInv * r
         // The transformed r squared
-        vec2 covInvTimesR = covInv * r;
+        float scale = 10.0;
+        vec2 covInvTimesR = 1.0 * covInv * r;
         float r2Q = dot(r, covInvTimesR);
 
         // Unphysical, but nice for drawing
         // TODO add radius here
-        float normalDistributionWeight = exp(-0.5 * r2Q) / (2.0 * pi * sqrt(covDet));
+        float normalDistributionWeight = exp(-0.5 * r2Q / (particleRadius * particleRadius)) / (2.0 * pi * sqrt(covDet));
 
         float E_abs = permettivityInverse / (r2Q * sqrt(covDet));
 
@@ -143,8 +145,8 @@ void main() {
         float B_abs = abs(cross(vec3(vel, 0.0), vec3(covInv * rNorm, 0.0)) * permeability / ( 4.0 * pi * dot(rQ, rQ))).z;
 
         float normDist_weight = 0.0;
-        float B_weight = 0.03;
-        float E_weight = 0.01;
+        float B_weight = 0.3;
+        float E_weight = 0.03;
         totalWeight += normDist_weight * normalDistributionWeight * color + B_weight * B_abs * color + E_weight * E_abs * color;
 
     }

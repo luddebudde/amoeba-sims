@@ -68,6 +68,7 @@ type SharedConfig = {
 
 export type Scenario = {
   particles: ParticleType[]
+  mouseParticle: ParticleType
   shared: SharedConfig
 }
 
@@ -86,8 +87,11 @@ function dampingForce(
   return mult(rNorm, -dxdt * config.springDampingCoeff)
 }
 
-const findParticleType = (scenario: Scenario, uid: string) =>
-  scenario.particles.find((it) => it.uid === uid)
+const findParticleType = (scenario: Scenario, uid: string) => {
+  return (
+    scenario.particles.find((it) => it.uid === uid) ?? scenario.mouseParticle
+  )
+}
 
 // Physical constants: TODO parameterize and add controls to UI
 // Smaller -> stronger electric field
@@ -120,7 +124,7 @@ export const forceFromParticle = (
 
   const gravityF = gravityForce(
     thisType.mass,
-    gravityField(-scenario.shared.gravitationalConstant, r, thisType.k2),
+    gravityField(-scenario.shared.gravitationalConstant, r, otherType.k2),
   )
 
   // If particles are overlapping, simulate loss of kinetic energy
@@ -152,6 +156,7 @@ function calculateForce(
   mapRadius: number,
   scenario: Scenario,
   particles: Particle[],
+  mouseParticle: Particle,
 ) {
   const particleType = findParticleType(scenario, particle.type)
   if (particleType === undefined) {
@@ -183,7 +188,10 @@ function calculateForce(
     },
     { x: 0, y: 0 },
   )
-  return sum(fieldForce, otherParticleForce, airResistance)
+
+  const mouseForce = forceFromParticle(particle, mouseParticle, scenario)
+
+  return sum(fieldForce, otherParticleForce, airResistance, mouseForce)
 }
 
 export const createGame = async (
@@ -191,6 +199,7 @@ export const createGame = async (
   initialScenario: Scenario,
 ) => {
   let scenario = initialScenario
+  let mousePos = origin
 
   const app = new Application({
     background: '#292626',
@@ -292,7 +301,6 @@ export const createGame = async (
   // 2 for position
   // 2 for velocity
   // 3 for color
-  const particleUniformSize = 2 + 2 + 3
 
   const dotShader = PIXI.Shader.from(fadeVertex, fadeFragment, {
     dt: 0,
@@ -345,7 +353,14 @@ export const createGame = async (
   let timePrevious = performance.now()
 
   // app.ticker.maxFPS = 5
+
   app.ticker.add((time) => {
+    const mouseParticle: Particle = {
+      pos: mousePos,
+      type: scenario.mouseParticle.uid,
+      vel: origin,
+    }
+
     const dt = time * scenario.shared.timeScale
     const timeNow = performance.now()
     const dt2 = timeNow - timePrevious
@@ -362,7 +377,13 @@ export const createGame = async (
 
     particlesT0.forEach((particleT0, index) => {
       const particleTHalf = particlesTHalf[index]
-      const force = calculateForce(particleT0, mapRadius, scenario, particlesT0)
+      const force = calculateForce(
+        particleT0,
+        mapRadius,
+        scenario,
+        particlesT0,
+        mouseParticle,
+      )
 
       const particleType = findParticleType(scenario, particleT0.type)
 
@@ -404,6 +425,7 @@ export const createGame = async (
         mapRadius,
         scenario,
         particlesTHalf,
+        mouseParticle,
       )
 
       const acc = div(force, particleType.mass)
@@ -431,20 +453,22 @@ export const createGame = async (
     //   true,
     // )
 
-    dotShader.uniforms.dt = dt
-    dotShader.uniforms.particlesCount = Math.min(
-      particlesT1.length,
-      maxParticles,
-    )
-
-    const particlesData = particlesT1.flatMap((p) => {
+    const particlesToDraw = [...particlesT1, mouseParticle]
+    const particlesData = particlesToDraw.flatMap((p) => {
       const particleType = findParticleType(scenario, p.type)
       const color =
         particleType === undefined
           ? [0, 1, 1]
           : (hexToRgbArray(particleType.color) ?? [1, 0, 0])
 
-      return [p.pos.x, p.pos.y, p.vel.x, p.vel.y, ...color, 0.0]
+      return [
+        p.pos.x,
+        p.pos.y,
+        p.vel.x,
+        p.vel.y,
+        ...color,
+        particleType?.particleRadius ?? 0,
+      ]
     })
 
     for (let i = 0; i < particleFloatBuffer.length; i++) {
@@ -456,6 +480,11 @@ export const createGame = async (
     dotShader.uniforms.colorStrength = scenario.shared.colorStrength
     dotShader.uniforms.permettivityInverse = scenario.shared.permettivityInverse
     dotShader.uniforms.permeability = scenario.shared.permeability
+    dotShader.uniforms.dt = dt
+    dotShader.uniforms.particlesCount = Math.min(
+      particlesToDraw.length,
+      maxParticles,
+    )
 
     timeFilter.uniforms.dt = dt
     timeFilter.uniforms.tailFade = scenario.shared.tailFade
@@ -479,6 +508,7 @@ export const createGame = async (
     setScenario: (newScenario: Scenario) => {
       scenario = newScenario
     },
+    setMousePos: (pos: Vec) => (mousePos = pos),
   }
 }
 
