@@ -5,21 +5,23 @@ export type Rectangle = {
   width: number
   height: number
 }
-export type QuadTree<T> = Tree<T> | Leaf<T> | EmptyLeaf
+export type QuadTree<T, Q> = Tree<T, Q> | Leaf<T, Q> | EmptyLeaf
 
-export type Tree<T> = {
+export type Tree<T, Q> = {
   tag: 'tree'
   bounds: Rectangle
-  tl: QuadTree<T>
-  tr: QuadTree<T>
-  bl: QuadTree<T>
-  br: QuadTree<T>
+  tl: QuadTree<T, Q>
+  tr: QuadTree<T, Q>
+  bl: QuadTree<T, Q>
+  br: QuadTree<T, Q>
+  quantity: Q
 }
 
-export type Leaf<T> = {
+export type Leaf<T, Q> = {
   tag: 'leaf'
   bounds: Rectangle
   data: T
+  quantity: Q
 }
 
 export type EmptyLeaf = {
@@ -100,12 +102,15 @@ const getBoundingRectangle = <T>(
   }
 }
 
-export const barnesHutTree = <T>(
+export const barnesHutTree = <T, Q>(
   particles: T[],
   getPos: (particle: T) => Vec,
-): QuadTree<T> => {
-  return particles.reduce<QuadTree<T>>(
-    (tree, particle) => insertParticle(tree, particle, getPos),
+  getQuantity: (particle: T) => Q,
+  combine: (q1: Q, q2: Q) => Q,
+): QuadTree<T, Q> => {
+  return particles.reduce<QuadTree<T, Q>>(
+    (tree, particle) =>
+      insertParticle(tree, particle, getPos, getQuantity, combine),
     {
       tag: 'empty-leaf',
       bounds: getBoundingRectangle(particles, getPos),
@@ -113,11 +118,29 @@ export const barnesHutTree = <T>(
   )
 }
 
+const isTL = (pos: Vec, bounds: Rectangle): boolean =>
+  pos.x < bounds.pos.x + bounds.width / 2 &&
+  pos.y < bounds.pos.y + bounds.height / 2
+
+const isTR = (pos: Vec, bounds: Rectangle): boolean =>
+  pos.x >= bounds.pos.x + bounds.width / 2 &&
+  pos.y < bounds.pos.y + bounds.height / 2
+
+const isBL = (pos: Vec, bounds: Rectangle): boolean =>
+  pos.x < bounds.pos.x + bounds.width / 2 &&
+  pos.y >= bounds.pos.y + bounds.height / 2
+
+const isBR = (pos: Vec, bounds: Rectangle): boolean =>
+  pos.x >= bounds.pos.x + bounds.width / 2 &&
+  pos.y >= bounds.pos.y + bounds.height / 2
+
 const insertParticle = <T, Q>(
-  tree: QuadTree<T>,
+  tree: QuadTree<T, Q>,
   particle: T,
   getPos: (particle: T) => Vec,
-): QuadTree<T> => {
+  getQuantity: (particle: T) => Q,
+  combine: (q1: Q, q2: Q) => Q,
+): QuadTree<T, Q> => {
   switch (tree.tag) {
     case 'empty-leaf':
       // If the leaf is empty, we can insert the particle directly
@@ -125,73 +148,117 @@ const insertParticle = <T, Q>(
         tag: 'leaf',
         bounds: tree.bounds,
         data: particle,
+        quantity: getQuantity(particle),
       }
     case 'leaf':
       // If the leaf already has data, we need to split it into four
-      const existingParticle = tree.data
-      const childBounds = splitBounds(tree.bounds)
-      const newTree = insertParticle(
-        {
-          tag: 'tree',
-          bounds: tree.bounds,
-          tl: {
-            tag: 'empty-leaf',
-            bounds: childBounds.tl,
-          },
-          tr: {
-            tag: 'empty-leaf',
-            bounds: childBounds.tr,
-          },
-          bl: {
-            tag: 'empty-leaf',
-            bounds: childBounds.bl,
-          },
-          br: {
-            tag: 'empty-leaf',
-            bounds: childBounds.br,
-          },
-        },
-        existingParticle,
+      return insertParticle(
+        constructTree(tree, getPos),
+        particle,
         getPos,
+        getQuantity,
+        combine,
       )
-      return insertParticle(newTree, particle, getPos)
     case 'tree':
       // If the tree has children, we need to find the correct child to insert into
       const pos = getPos(particle)
       const bounds = tree.bounds
-      if (
-        pos.x < bounds.pos.x + bounds.width / 2 &&
-        pos.y < bounds.pos.y + bounds.height / 2
-      ) {
-        // Top-left
+      if (isTL(pos, bounds)) {
         return {
           ...tree,
-          tl: insertParticle(tree.tl, particle, getPos),
+          tl: insertParticle(tree.tl, particle, getPos, getQuantity, combine),
+          quantity: combine(tree.quantity, getQuantity(particle)),
         }
-      } else if (
-        pos.x >= bounds.pos.x + bounds.width / 2 &&
-        pos.y < bounds.pos.y + bounds.height / 2
-      ) {
-        // Top-right
+      } else if (isTR(pos, bounds)) {
         return {
           ...tree,
-          tr: insertParticle(tree.tr, particle, getPos),
+          tr: insertParticle(tree.tr, particle, getPos, getQuantity, combine),
+          quantity: combine(tree.quantity, getQuantity(particle)),
         }
-      } else if (
-        pos.x < bounds.pos.x + bounds.width / 2 &&
-        pos.y >= bounds.pos.y + bounds.height / 2
-      ) {
-        // Bottom-left
+      } else if (isBL(pos, bounds)) {
         return {
           ...tree,
-          bl: insertParticle(tree.bl, particle, getPos),
+          bl: insertParticle(tree.bl, particle, getPos, getQuantity, combine),
+          quantity: combine(tree.quantity, getQuantity(particle)),
         }
       } else {
         // Bottom-right
         return {
           ...tree,
-          br: insertParticle(tree.br, particle, getPos),
+          br: insertParticle(tree.br, particle, getPos, getQuantity, combine),
+          quantity: combine(tree.quantity, getQuantity(particle)),
         }
       }
+  }
+}
+
+const constructTree = <T, Q>(
+  leaf: Leaf<T, Q>,
+  getPos: (particle: T) => Vec,
+): Tree<T, Q> => {
+  const { data, bounds } = leaf
+  const pos = getPos(data)
+  const childBounds = splitBounds(bounds)
+  const newTree: Tree<T, Q> = {
+    tag: 'tree',
+    bounds: leaf.bounds,
+    quantity: leaf.quantity,
+    tl: {
+      tag: 'empty-leaf',
+      bounds: childBounds.tl,
+    },
+    tr: {
+      tag: 'empty-leaf',
+      bounds: childBounds.tr,
+    },
+    bl: {
+      tag: 'empty-leaf',
+      bounds: childBounds.bl,
+    },
+    br: {
+      tag: 'empty-leaf',
+      bounds: childBounds.br,
+    },
+  }
+  if (isTL(pos, bounds)) {
+    return {
+      ...newTree,
+      tl: {
+        tag: 'leaf',
+        bounds: childBounds.tl,
+        data,
+        quantity: leaf.quantity,
+      },
+    }
+  } else if (isTR(pos, bounds)) {
+    return {
+      ...newTree,
+      tr: {
+        tag: 'leaf',
+        bounds: childBounds.tr,
+        data,
+        quantity: leaf.quantity,
+      },
+    }
+  } else if (isBL(pos, bounds)) {
+    return {
+      ...newTree,
+      bl: {
+        tag: 'leaf',
+        bounds: childBounds.bl,
+        data,
+        quantity: leaf.quantity,
+      },
+    }
+  } else {
+    return {
+      ...newTree,
+      br: {
+        tag: 'leaf',
+        bounds: childBounds.br,
+        data,
+        quantity: leaf.quantity,
+      },
+    }
   }
 }
