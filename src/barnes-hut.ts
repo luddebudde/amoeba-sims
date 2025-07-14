@@ -5,6 +5,7 @@ export type Rectangle = {
   width: number
   height: number
 }
+
 export type QuadTree<T, Q> = Tree<T, Q> | Leaf<T, Q> | EmptyLeaf
 
 export type Tree<T, Q> = {
@@ -260,5 +261,30 @@ const constructTree = <T, Q>(
         quantity: leaf.quantity,
       },
     }
+  }
+}
+
+export const forEachNode = <T, Q>(
+  tree: QuadTree<T, Q>,
+  isFar: (node: Leaf<T, Q> | Tree<T, Q>) => boolean,
+  callback: (node: Leaf<T, Q> | Tree<T, Q>) => void,
+) => {
+  switch (tree.tag) {
+    case 'empty-leaf':
+      return
+    case 'leaf':
+      callback(tree)
+      return
+    case 'tree':
+      if (isFar(tree)) {
+        // If the quantity is far enough, we can treat the whole tree as a single particle
+        callback(tree)
+      } else {
+        forEachNode(tree.tl, isFar, callback)
+        forEachNode(tree.tr, isFar, callback)
+        forEachNode(tree.bl, isFar, callback)
+        forEachNode(tree.br, isFar, callback)
+      }
+      return
   }
 }

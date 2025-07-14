@@ -31,6 +31,7 @@ import {
   gravityField,
   gravityForce,
 } from './physcis.ts'
+import { barnesHutTree, forEachNode, QuadTree } from './barnes-hut.ts'
 
 export type Game = Awaited<ReturnType<typeof createGame>>
 
@@ -71,8 +72,8 @@ export type Scenario = {
 
 // TODO combine both springs
 function dampingForce(
-  thisParticle: Particle,
-  otherParticle: Particle,
+  thisParticle: CenterOfMassAndCharge,
+  otherParticle: CenterOfMassAndCharge,
   config: ParticleType,
 ) {
   const r = sub(thisParticle.pos, otherParticle.pos)
@@ -95,13 +96,12 @@ const permeability = 10
 
 export const forceFromParticle = (
   thisParticle: Particle,
-  otherParticle: Particle,
+  otherParticle: CenterOfMassAndCharge,
   scenario: Scenario,
 ): Vec => {
   const thisType = findParticleType(scenario, thisParticle.type)
-  const otherType = findParticleType(scenario, otherParticle.type)
 
-  if (thisType === undefined || otherType === undefined) {
+  if (thisType === undefined) {
     // Something is wrong: cannot calculate the force
     return origin
   }
@@ -118,34 +118,46 @@ export const forceFromParticle = (
   )
 
   // If particles are overlapping, simulate loss of kinetic energy
-  const dampingF =
-    rNorm2 > thisType.particleRadius + otherType.particleRadius
-      ? origin
-      : dampingForce(thisParticle, otherParticle, thisType)
+  // const dampingF =
+  //   rNorm2 > thisType.particleRadius + otherType.particleRadius
+  //     ? origin
+  //     : dampingForce(thisParticle, otherParticle, thisType)
 
-  const lorentzF = emForce(
-    thisType.charge,
-    thisParticle.vel,
-    ...emField(
-      1 / scenario.shared.permettivityInverse,
-      scenario.shared.permeability,
-      r,
-      otherType.charge,
-      otherParticle.vel,
-    ),
+  // const lorentzF = emForce(
+  //   thisType.charge,
+  //   thisParticle.vel,
+  //   ...emField(
+  //     1 / scenario.shared.permettivityInverse,
+  //     scenario.shared.permeability,
+  //     r,
+  //     otherType.charge,
+  //     otherParticle.vel,
+  //   ),
+  // )
+
+  const totalF = sum(
+    nearRepulsionF,
+    // dampingF,
+    gravityF,
+    // , lorentzF
   )
-
-  const totalF = sum(nearRepulsionF, dampingF, gravityF, lorentzF)
 
   // Ensure that the force does not become too great
   return clipForce(totalF, thisType.maxAbs)
+}
+
+type CenterOfMassAndCharge = {
+  pos: Vec
+  // vel: Vec
+  mass: number
+  // charge: number
 }
 
 function calculateForce(
   particle: Particle,
   mapRadius: number,
   scenario: Scenario,
-  particles: Particle[],
+  tree: QuadTree<Particle, CenterOfMassAndCharge>,
 ) {
   const particleType = findParticleType(scenario, particle.type)
   if (particleType === undefined) {
@@ -162,21 +174,58 @@ function calculateForce(
 
   const airResistance = mult(particle.vel, -particleType.airResistanceCoeff)
 
-  const otherParticleForce = particles.reduce(
-    (force, otherParticle) => {
-      if (particle === otherParticle) {
-        return force
-      }
-
-      const f = forceFromParticle(particle, otherParticle, scenario)
-
-      force.x += f.x
-      force.y += f.y
-
-      return force
+  const threshold = 0.5
+  const threshold2 = threshold * threshold
+  const otherParticleForce = { x: 0, y: 0 }
+  forEachNode(
+    tree,
+    (node) => {
+      const s = Math.max(node.bounds.width, node.bounds.height)
+      const s2 = s * s
+      const d2 = lengthSq(sub(particle.pos, node.bounds.pos))
+      return s2 / d2 < threshold2
     },
-    { x: 0, y: 0 },
+    (node) => {
+      if (node.tag === 'leaf' && node.data === particle) {
+        return
+      }
+      const otherParticle = node.quantity
+      const f = forceFromParticle(particle, otherParticle, scenario)
+      otherParticleForce.x += f.x
+      otherParticleForce.y += f.y
+    },
   )
+
+  // const otherParticleForce = particles.reduce(
+  //   (force, otherParticle) => {
+  //     if (particle === otherParticle) {
+  //       return force
+  //     }
+  //
+  //     const otherParticleType = findParticleType(scenario, otherParticle.type)
+  //
+  //     if (otherParticleType === undefined) {
+  //       // Something is wrong: cannot calculate the force
+  //       return force
+  //     }
+  //
+  //     const f = forceFromParticle(
+  //       particle,
+  //       {
+  //         pos: otherParticle.pos,
+  //         mass: otherParticleType.mass,
+  //       },
+  //       scenario,
+  //     )
+  //
+  //     force.x += f.x
+  //     force.y += f.y
+  //
+  //     return force
+  //   },
+  //   { x: 0, y: 0 },
+  // )
+
   return sum(fieldForce, otherParticleForce, airResistance)
 }
 
@@ -283,11 +332,6 @@ export const createGame = async (
     )
     .addIndex([0, 1, 2, 1, 2, 3])
 
-  // 2 for position
-  // 2 for velocity
-  // 3 for color
-  const particleUniformSize = 2 + 2 + 3
-
   const dotShader = PIXI.Shader.from(fadeVertex, fadeFragment, {
     dt: 0,
     particlesCount: 0,
@@ -357,9 +401,31 @@ export const createGame = async (
     energyText.text = `Kinetic Energy: ${kineticEnergy.toFixed(2)} J`
     fpsText.text = `${fps.toFixed(0)} fps`
 
+    const getPos = (p: Particle) => p.pos
+
+    const getQuantity = (p: Particle) => ({
+      pos: p.pos,
+      mass: findParticleType(scenario, p.type)!.mass,
+    })
+    const centerOfMass = (
+      p1: CenterOfMassAndCharge,
+      p2: CenterOfMassAndCharge,
+    ): CenterOfMassAndCharge => ({
+      pos: div(
+        sum(mult(p1.pos, p1.mass), mult(p2.pos, p2.mass)),
+        p1.mass + p2.mass,
+      ),
+      // vel: div(
+      //   sum(mult(p1.vel, p1.mass), mult(p2.vel, p2.mass)),
+      //   p1.mass + p2.mass,
+      // ),
+      mass: p1.mass + p2.mass,
+    })
+    const treeT0 = barnesHutTree(particlesT0, getPos, getQuantity, centerOfMass)
+
     particlesT0.forEach((particleT0, index) => {
       const particleTHalf = particlesTHalf[index]
-      const force = calculateForce(particleT0, mapRadius, scenario, particlesT0)
+      const force = calculateForce(particleT0, mapRadius, scenario, treeT0)
 
       const particleType = findParticleType(scenario, particleT0.type)
 
@@ -385,6 +451,13 @@ export const createGame = async (
       particleTHalf.pos = particleT1.pos
     })
 
+    const treeTHalf = barnesHutTree(
+      particlesTHalf,
+      getPos,
+      getQuantity,
+      centerOfMass,
+    )
+
     particlesT0.forEach((particleT0, index) => {
       const particleTHalf = particlesTHalf[index]
       const particleT1 = particlesT1[index]
@@ -400,7 +473,7 @@ export const createGame = async (
         particleTHalf,
         mapRadius,
         scenario,
-        particlesTHalf,
+        treeTHalf,
       )
 
       const acc = div(force, particleType.mass)
@@ -409,24 +482,6 @@ export const createGame = async (
       const v = sum(particleTHalf.vel, dVel)
       particleT1.vel = v
     })
-
-    // particlesT0.forEach((particleT0, index) => {
-    //   const particleT1 = particlesT1[index]
-    //   const force = calculateForce(particleT0, mapRadius, config, particlesT0)
-
-    //   const acc = div(force, config.mass)
-    //   const dVel = mult(acc, dt)
-
-    //   const v1 = sum(particleT0.vel, dVel)
-    //   particleT1.vel = v1
-    //   particleT1.pos = sum(particleT0.pos, v1)
-    // })
-
-    // buffer.setDataWithSize(
-    //   new Float32Array(particlesT1.flatMap((p) => [p.pos.x, p.pos.y])),
-    //   particlesT1.length * 2,
-    //   true,
-    // )
 
     dotShader.uniforms.dt = dt
     dotShader.uniforms.particlesCount = Math.min(
